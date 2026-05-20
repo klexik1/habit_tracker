@@ -61,7 +61,8 @@ public class AnalyticsService {
                 currentStreak,
                 longestStreak,
                 recent,
-                byCategory
+                byCategory,
+                habit.getCreatedAt() != null ? habit.getCreatedAt().toString() : null
         );
     }
 

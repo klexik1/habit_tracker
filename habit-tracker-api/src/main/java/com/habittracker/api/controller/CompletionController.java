@@ -26,12 +26,11 @@ public class CompletionController {
     }
 
     @PostMapping("/habit/{habitId}")
-    public ResponseEntity<CompletionDto> markCompletion(
+    public ResponseEntity<CompletionDto> toggleCompletion(
             @PathVariable Long habitId,
-            @Valid @RequestBody CompletionRequest request,
             Authentication auth) {
         User user = userService.findByUsername(auth.getName());
-        return ResponseEntity.ok(completionService.markCompletion(habitId, request, user));
+        return ResponseEntity.ok(completionService.toggleCompletion(habitId, user));
     }
 
     @GetMapping("/habit/{habitId}")

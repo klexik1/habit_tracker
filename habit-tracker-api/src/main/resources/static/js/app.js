@@ -30,7 +30,210 @@ function showSection(section) {
     document.getElementById('analytics-section').style.display = section === 'analytics' ? 'block' : 'none';
     
     if (section === 'analytics') {
-        loadAnalytics();
+        // Сбрасываем выбор привычки
+        document.getElementById('analytics-habit-select').value = '';
+        document.getElementById('analytics-content').innerHTML = '';
+        loadHabitsForAnalytics();
+    }
+}
+
+// Загрузка привычек для селекта аналитики
+async function loadHabitsForAnalytics() {
+    const select = document.getElementById('analytics-habit-select');
+    select.innerHTML = '<option value="">-- Выберите привычку --</option>';
+
+    try {
+        const response = await fetch(`${API_URL}/habits`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Ошибка');
+
+        const habits = await response.json();
+        habits.forEach(habit => {
+            const option = document.createElement('option');
+            option.value = habit.id;
+            option.textContent = habit.name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        showNotification('Ошибка загрузки привычек', 'error');
+    }
+}
+
+// Загрузка аналитики по выбранной привычке
+async function loadHabitAnalytics() {
+    const select = document.getElementById('analytics-habit-select');
+    const habitId = select.value;
+    const container = document.getElementById('analytics-content');
+
+    if (!habitId) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = '<div class="loading">Загрузка аналитики...</div>';
+
+    try {
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+        const [analyticsRes, completionsRes] = await Promise.all([
+            fetch(`${API_URL}/analytics/habit/${habitId}?start=${startDate}&end=${endDate}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch(`${API_URL}/completions/habit/${habitId}?start=${startDate}&end=${endDate}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+        ]);
+
+        if (!analyticsRes.ok) throw new Error('Ошибка');
+
+        const analytics = await analyticsRes.json();
+        const completions = completionsRes.ok ? await completionsRes.json() : [];
+
+        container.innerHTML = `
+            <div class="analytics-detail">
+                <div class="analytics-header">
+                    <h3>📊 ${analytics.habitName}</h3>
+                    <span class="category">${getCategoryName(analytics.completionsByCategory ? Object.keys(analytics.completionsByCategory)[0] : 'OTHER')}</span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="value">${analytics.currentStreak}</div>
+                        <div class="label">🔥 Текущая серия</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${analytics.longestStreak}</div>
+                        <div class="label">🏆 Лучшая серия</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${analytics.periodCompletions}</div>
+                        <div class="label">📅 Выполнений за 30 дней</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${analytics.totalCompletions}</div>
+                        <div class="label">💪 Всего выполнений</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${analytics.completionRate}%</div>
+                        <div class="label">📈 Процент выполнения</div>
+                    </div>
+                </div>
+
+                <div class="progress-bar">
+                    <div class="fill" style="width: ${analytics.completionRate}%"></div>
+                </div>
+                <p style="text-align: center; margin-top: 10px; color: #666;">Прогресс за последние 30 дней</p>
+
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <h4>📅 Выполнения по дням</h4>
+                        <div class="chart-container">
+                            <canvas id="dailyChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h4>📊 Статус выполнения</h4>
+                        <div class="chart-container">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // График по дням - линейный график вместо баров
+        const dailyData = {};
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+            const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+            dailyData[dateStr] = 0;
+        }
+
+        completions.forEach(c => {
+            if (c.completed) {
+                const date = new Date(c.completedDate);
+                const dateStr = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+                if (dailyData[dateStr] !== undefined) {
+                    dailyData[dateStr]++;
+                }
+            }
+        });
+
+        new Chart(document.getElementById('dailyChart'), {
+            type: 'line',
+            data: {
+                labels: Object.keys(dailyData),
+                datasets: [{
+                    label: 'Выполнения',
+                    data: Object.values(dailyData),
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, display: false },
+                        grid: { display: false }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // Круговая диаграмма - считаем только реально пропущенные
+        const completed = analytics.periodCompletions;
+        const totalDaysSinceCreation = Math.min(30, Math.ceil((new Date() - new Date(analytics.habitCreatedAt || new Date())) / (1000 * 60 * 60 * 24)));
+        const missed = Math.max(0, totalDaysSinceCreation - completed);
+
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Выполнено', 'Не выполнено'],
+                datasets: [{
+                    data: [completed, missed],
+                    backgroundColor: ['#27ae60', '#ecf0f1'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        container.innerHTML = '<div class="empty-state">Ошибка загрузки аналитики</div>';
+        console.error(error);
     }
 }
 
@@ -128,16 +331,28 @@ async function loadHabits() {
 
         habits.forEach(habit => {
             const card = document.createElement('div');
-            card.className = 'habit-card';
+            card.className = 'habit-card' + (habit.completedToday ? ' completed' : '');
             card.innerHTML = `
                 <span class="category">${getCategoryName(habit.category)}</span>
-                <h4>${habit.name}</h4>
+                <h4>
+                    <span class="checkmark">✓</span>
+                    ${habit.name}
+                    ${habit.completedToday ? '<span class="status-badge">✓ Выполнено сегодня</span>' : '<span class="status-badge">⏳ Не выполнено</span>'}
+                </h4>
                 <p>${habit.description || 'Нет описания'}</p>
-                <p>📅 ${habit.frequency === 'DAILY' ? 'Ежедневно' : 'Еженедельно'}</p>
+                <p>📅 ${habit.frequency === 'DAILY' ? 'Каждый день' : 'Каждую неделю'}</p>
                 ${habit.reminderTime ? `<p>⏰ Напоминание: ${habit.reminderTime}</p>` : ''}
+                <div class="stats-row">
+                    <div class="stat">
+                        <div class="value">${habit.totalCompletions || 0}</div>
+                        <div class="label">Всего выполнено</div>
+                    </div>
+                </div>
                 <div class="actions">
-                    <button class="complete" onclick="markComplete(${habit.id})">✓ Выполнено</button>
-                    <button onclick="deleteHabit(${habit.id})">Удалить</button>
+                    <button class="complete" onclick="toggleComplete(${habit.id}, event)">
+                        ${habit.completedToday ? '↩ Отменить' : '✓ Выполнено'}
+                    </button>
+                    <button class="delete" onclick="deleteHabit(${habit.id})">🗑 Удалить</button>
                 </div>
             `;
             container.appendChild(card);
@@ -190,29 +405,31 @@ document.getElementById('habit-form').addEventListener('submit', async (e) => {
     }
 });
 
-// Отметка выполнения
-async function markComplete(habitId) {
-    const today = new Date().toISOString().split('T')[0];
-    
+// Переключение выполнения
+async function toggleComplete(habitId, event) {
+    // Сохраняем позицию скролла
+    const scrollPosition = window.scrollY;
+
     try {
         const response = await fetch(`${API_URL}/completions/habit/${habitId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                date: today,
-                completed: true,
-                note: 'Выполнено!'
-            })
+            }
         });
 
         if (!response.ok) throw new Error('Ошибка');
 
-        showNotification('Отличная работа! ✓', 'success');
+        const result = await response.json();
+        const message = result.completed ? 'Отличная работа! ✓' : 'Выполнение отменено';
+        showNotification(message, result.completed ? 'success' : 'info');
+        loadHabits();
+
+        // Восстанавливаем позицию скролла
+        setTimeout(() => window.scrollTo(0, scrollPosition), 50);
     } catch (error) {
-        showNotification('Ошибка отметки выполнения', 'error');
+        showNotification('Ошибка', 'error');
     }
 }
 
@@ -235,69 +452,4 @@ async function deleteHabit(habitId) {
     }
 }
 
-// Загрузка аналитики
-async function loadAnalytics() {
-    const container = document.getElementById('analytics-content');
-    container.innerHTML = '<div class="loading">Загрузка аналитики...</div>';
 
-    try {
-        const habitsResponse = await fetch(`${API_URL}/habits`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!habitsResponse.ok) throw new Error('Ошибка');
-
-        const habits = await habitsResponse.json();
-        
-        if (habits.length === 0) {
-            container.innerHTML = '<div class="empty-state">Нет данных для аналитики</div>';
-            return;
-        }
-
-        container.innerHTML = '';
-        
-        const endDate = new Date().toISOString().split('T')[0];
-        const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-        for (const habit of habits) {
-            const analyticsResponse = await fetch(
-                `${API_URL}/analytics/habit/${habit.id}?start=${startDate}&end=${endDate}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
-            );
-
-            if (analyticsResponse.ok) {
-                const analytics = await analyticsResponse.json();
-                
-                const card = document.createElement('div');
-                card.className = 'analytics-card';
-                card.innerHTML = `
-                    <h4>${habit.name}</h4>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="value">${analytics.currentStreak}</div>
-                            <div class="label">Текущая серия</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="value">${analytics.longestStreak}</div>
-                            <div class="label">Лучшая серия</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="value">${analytics.periodCompletions}</div>
-                            <div class="label">Выполнений за 30 дней</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="value">${analytics.completionRate}%</div>
-                            <div class="label">Процент выполнения</div>
-                        </div>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="fill" style="width: ${analytics.completionRate}%"></div>
-                    </div>
-                `;
-                container.appendChild(card);
-            }
-        }
-    } catch (error) {
-        container.innerHTML = '<div class="empty-state">Ошибка загрузки аналитики</div>';
-    }
-}

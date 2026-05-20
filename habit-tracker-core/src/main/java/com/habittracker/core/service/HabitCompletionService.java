@@ -25,24 +25,28 @@ public class HabitCompletionService {
         this.habitRepository = habitRepository;
     }
 
-    public CompletionDto markCompletion(Long habitId, CompletionRequest request, User user) {
+    public CompletionDto toggleCompletion(Long habitId, User user) {
         Habit habit = habitRepository.findById(habitId)
                 .orElseThrow(() -> new NotFoundException("Habit not found"));
         if (!habit.getUser().getId().equals(user.getId())) {
             throw new NotFoundException("Habit not found");
         }
 
+        LocalDate today = LocalDate.now();
         HabitCompletion completion = completionRepository
-                .findByHabitIdAndCompletedDate(habitId, request.date())
-                .orElse(new HabitCompletion());
+                .findByHabitIdAndCompletedDate(habitId, today)
+                .orElse(null);
 
-        if (completion.getId() == null) {
+        if (completion == null) {
+            completion = new HabitCompletion();
             completion.setHabit(habit);
-            completion.setCompletedDate(request.date());
+            completion.setCompletedDate(today);
+            completion.setCompleted(true);
+            completion.setNote("Выполнено");
+        } else {
+            completion.setCompleted(!completion.isCompleted());
+            completion.setNote(completion.isCompleted() ? "Выполнено" : "Отменено");
         }
-
-        completion.setCompleted(request.completed());
-        completion.setNote(request.note());
 
         return toDto(completionRepository.save(completion));
     }
@@ -65,6 +69,20 @@ public class HabitCompletionService {
                 .stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    public long getTotalCompletions(Long habitId) {
+        return completionRepository.countCompletedByHabitAndPeriod(
+                habitId,
+                LocalDate.of(2000, 1, 1),
+                LocalDate.now()
+        );
+    }
+
+    public boolean isCompletedToday(Long habitId) {
+        return completionRepository.findByHabitIdAndCompletedDate(habitId, LocalDate.now())
+                .map(HabitCompletion::isCompleted)
+                .orElse(false);
     }
 
     private CompletionDto toDto(HabitCompletion completion) {

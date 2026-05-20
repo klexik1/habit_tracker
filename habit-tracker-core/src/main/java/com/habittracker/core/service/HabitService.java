@@ -15,9 +15,11 @@ import java.util.List;
 @Transactional
 public class HabitService {
     private final HabitRepository habitRepository;
+    private final HabitCompletionService completionService;
 
-    public HabitService(HabitRepository habitRepository) {
+    public HabitService(HabitRepository habitRepository, HabitCompletionService completionService) {
         this.habitRepository = habitRepository;
+        this.completionService = completionService;
     }
 
     public HabitDto createHabit(CreateHabitRequest request, User user) {
@@ -68,6 +70,8 @@ public class HabitService {
     }
 
     public HabitDto toDto(Habit habit) {
+        Long totalCompletions = completionService.getTotalCompletions(habit.getId());
+        boolean completedToday = completionService.isCompletedToday(habit.getId());
         return new HabitDto(
                 habit.getId(),
                 habit.getName(),
@@ -76,7 +80,9 @@ public class HabitService {
                 habit.getFrequency(),
                 habit.getTargetCount(),
                 habit.getReminderTime(),
-                habit.getCreatedAt()
+                habit.getCreatedAt(),
+                totalCompletions,
+                completedToday
         );
     }
 }

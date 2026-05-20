@@ -14,5 +14,7 @@ public record HabitDto(
     Frequency frequency,
     Integer targetCount,
     LocalTime reminderTime,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    Long totalCompletions,
+    boolean completedToday
 ) {}

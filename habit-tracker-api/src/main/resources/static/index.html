@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Трекер привычек</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -43,37 +44,61 @@
 
         <!-- Привычки -->
         <section id="habits-section" style="display: none;">
-            <h2>Мои привычки</h2>
-            
             <div class="form-card">
                 <h3>Новая привычка</h3>
                 <form id="habit-form">
-                    <input type="text" id="habit-name" placeholder="Название привычки" required>
-                    <textarea id="habit-description" placeholder="Описание"></textarea>
-                    <select id="habit-category" required>
-                        <option value="">Выберите категорию</option>
-                        <option value="SPORT">Спорт</option>
-                        <option value="READING">Чтение</option>
-                        <option value="STUDY">Учёба</option>
-                        <option value="HEALTH">Здоровье</option>
-                        <option value="OTHER">Другое</option>
-                    </select>
-                    <select id="habit-frequency" required>
-                        <option value="DAILY">Ежедневно</option>
-                        <option value="WEEKLY">Еженедельно</option>
-                    </select>
-                    <input type="time" id="habit-reminder" title="Время напоминания">
-                    <button type="submit">Создать</button>
+                    <div class="form-group">
+                        <label for="habit-name">Название привычки *</label>
+                        <input type="text" id="habit-name" placeholder="Например: утренняя пробежка" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="habit-description">Описание</label>
+                        <textarea id="habit-description" placeholder="Дополнительные детали..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="habit-category">Категория *</label>
+                        <select id="habit-category" required>
+                            <option value="" disabled>📂 -- выберите категорию --</option>
+                            <option value="SPORT">🏃 Спорт</option>
+                            <option value="READING">📚 Чтение</option>
+                            <option value="STUDY">📖 Учёба</option>
+                            <option value="HEALTH">💪 Здоровье</option>
+                            <option value="OTHER">📌 Другое</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="habit-frequency">Частота выполнения *</label>
+                        <select id="habit-frequency" required>
+                            <option value="DAILY">📅 Каждый день</option>
+                            <option value="WEEKLY">📆 Каждую неделю</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="habit-reminder">⏰ Время напоминания</label>
+                        <input type="time" id="habit-reminder" title="Время напоминания">
+                    </div>
+                    <button type="submit">Создать привычку</button>
                 </form>
             </div>
 
+            <h2 class="section-title">📋 Мои привычки</h2>
             <div id="habits-list"></div>
         </section>
 
         <!-- Аналитика -->
         <section id="analytics-section" style="display: none;">
-            <h2>Аналитика</h2>
-            <div id="analytics-content"></div>
+            <h2>📈 Аналитика</h2>
+
+            <div class="habit-selector">
+                <label>Выберите привычку:</label>
+                <select id="analytics-habit-select" onchange="loadHabitAnalytics()">
+                    <option value="">-- Выберите --</option>
+                </select>
+            </div>
+
+            <div id="analytics-content">
+                <div class="empty-state">Выберите привычку для просмотра аналитики</div>
+            </div>
         </section>
 
         <!-- Уведомления -->

@@ -12,5 +12,6 @@ public record AnalyticsDto(
     int currentStreak,
     int longestStreak,
     List<CompletionDto> recentCompletions,
-    Map<String, Long> completionsByCategory
+    Map<String, Long> completionsByCategory,
+    String habitCreatedAt
 ) {}
