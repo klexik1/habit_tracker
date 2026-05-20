@@ -324,6 +324,14 @@ section h2 {
     background: #c0392b;
 }
 
+#analytics-overall {
+    margin-bottom: 30px;
+}
+
+#analytics-overall .section-title {
+    margin-top: 0;
+}
+
 .habit-selector {
     background: #f8f9fa;
     padding: 20px;

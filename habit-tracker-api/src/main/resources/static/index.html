@@ -58,12 +58,11 @@
                     <div class="form-group">
                         <label for="habit-category">Категория *</label>
                         <select id="habit-category" required>
-                            <option value="" disabled>📂 -- выберите категорию --</option>
+                            <option value="OTHER" selected>📌 Другое</option>
                             <option value="SPORT">🏃 Спорт</option>
                             <option value="READING">📚 Чтение</option>
                             <option value="STUDY">📖 Учёба</option>
                             <option value="HEALTH">💪 Здоровье</option>
-                            <option value="OTHER">📌 Другое</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -92,12 +91,13 @@
             <div class="habit-selector">
                 <label>Выберите привычку:</label>
                 <select id="analytics-habit-select" onchange="loadHabitAnalytics()">
-                    <option value="">-- Выберите --</option>
+                    <option value=""></option>
                 </select>
             </div>
 
+            <div id="analytics-overall"></div>
+
             <div id="analytics-content">
-                <div class="empty-state">Выберите привычку для просмотра аналитики</div>
             </div>
         </section>
 

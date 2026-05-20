@@ -33,6 +33,7 @@ function showSection(section) {
         // Сбрасываем выбор привычки
         document.getElementById('analytics-habit-select').value = '';
         document.getElementById('analytics-content').innerHTML = '';
+        loadOverallAnalytics();
         loadHabitsForAnalytics();
     }
 }
@@ -40,7 +41,7 @@ function showSection(section) {
 // Загрузка привычек для селекта аналитики
 async function loadHabitsForAnalytics() {
     const select = document.getElementById('analytics-habit-select');
-    select.innerHTML = '<option value="">-- Выберите привычку --</option>';
+    select.innerHTML = '<option value=""></option>';
 
     try {
         const response = await fetch(`${API_URL}/habits`, {
@@ -61,6 +62,104 @@ async function loadHabitsForAnalytics() {
     }
 }
 
+// Загрузка общей статистики
+async function loadOverallAnalytics() {
+    const container = document.getElementById('analytics-overall');
+    container.innerHTML = '<div class="loading">Загрузка общей статистики...</div>';
+
+    try {
+        const response = await fetch(`${API_URL}/habits`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Ошибка');
+
+        const habits = await response.json();
+
+        if (habits.length === 0) {
+            container.innerHTML = '<div class="empty-state">Нет привычек для статистики</div>';
+            return;
+        }
+
+        // Собираем общую статистику
+        let totalCompletions = 0;
+        let maxStreak = 0;
+        let maxStreakHabit = '';
+        let mostActiveHabit = '';
+        let mostActiveCompletions = 0;
+        const categoryStats = {};
+
+        for (const habit of habits) {
+            totalCompletions += (habit.totalCompletions || 0);
+
+            if ((habit.totalCompletions || 0) > mostActiveCompletions) {
+                mostActiveCompletions = habit.totalCompletions;
+                mostActiveHabit = habit.name;
+            }
+
+            const category = habit.category || 'OTHER';
+            categoryStats[category] = (categoryStats[category] || 0) + 1;
+
+            // Получаем аналитику для серии
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            const analyticsRes = await fetch(`${API_URL}/analytics/habit/${habit.id}?start=${startDate}&end=${endDate}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (analyticsRes.ok) {
+                const analytics = await analyticsRes.json();
+                if (analytics.longestStreak > maxStreak) {
+                    maxStreak = analytics.longestStreak;
+                    maxStreakHabit = habit.name;
+                }
+            }
+        }
+
+        // Находим самую популярную категорию
+        let topCategory = 'OTHER';
+        let topCategoryCount = 0;
+        for (const [cat, count] of Object.entries(categoryStats)) {
+            if (count > topCategoryCount) {
+                topCategoryCount = count;
+                topCategory = cat;
+            }
+        }
+
+        container.innerHTML = `
+            <div class="analytics-detail">
+                <h3 class="section-title">📊 Общая статистика</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="value">${habits.length}</div>
+                        <div class="label">📝 Всего привычек</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${totalCompletions}</div>
+                        <div class="label">💪 Всего выполнений</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${maxStreak}</div>
+                        <div class="label">🏆 Лучшая серия (${maxStreakHabit || '—'})</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${mostActiveCompletions}</div>
+                        <div class="label">⭐ Чаще всего (${mostActiveHabit || '—'})</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${getCategoryName(topCategory)}</div>
+                        <div class="label">📂 Популярная категория</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        container.innerHTML = '<div class="empty-state">Ошибка загрузки статистики</div>';
+        console.error(error);
+    }
+}
+
 // Загрузка аналитики по выбранной привычке
 async function loadHabitAnalytics() {
     const select = document.getElementById('analytics-habit-select');
@@ -69,9 +168,11 @@ async function loadHabitAnalytics() {
 
     if (!habitId) {
         container.innerHTML = '';
+        document.getElementById('analytics-overall').style.display = 'block';
         return;
     }
 
+    document.getElementById('analytics-overall').style.display = 'none';
     container.innerHTML = '<div class="loading">Загрузка аналитики...</div>';
 
     try {
