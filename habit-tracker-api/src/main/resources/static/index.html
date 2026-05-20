@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер привычек</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Трекер привычек</h1>
+            <nav id="nav" style="display: none;">
+                <button onclick="showSection('habits')">Привычки</button>
+                <button onclick="showSection('analytics')">Аналитика</button>
+                <button onclick="logout()">Выйти</button>
+            </nav>
+        </header>
+
+        <!-- Авторизация -->
+        <section id="auth-section">
+            <div class="auth-container">
+                <h2>Вход</h2>
+                <form id="login-form">
+                    <input type="text" id="login-username" placeholder="Имя пользователя" required>
+                    <input type="password" id="login-password" placeholder="Пароль" required>
+                    <button type="submit">Войти</button>
+                </form>
+                <p>Нет аккаунта? <a href="#" onclick="showRegister()">Зарегистрироваться</a></p>
+            </div>
+
+            <div class="auth-container" id="register-container" style="display: none;">
+                <h2>Регистрация</h2>
+                <form id="register-form">
+                    <input type="text" id="reg-username" placeholder="Имя пользователя" required>
+                    <input type="email" id="reg-email" placeholder="Email" required>
+                    <input type="password" id="reg-password" placeholder="Пароль (мин. 6 символов)" required minlength="6">
+                    <button type="submit">Зарегистрироваться</button>
+                </form>
+                <p>Есть аккаунт? <a href="#" onclick="showLogin()">Войти</a></p>
+            </div>
+        </section>
+
+        <!-- Привычки -->
+        <section id="habits-section" style="display: none;">
+            <h2>Мои привычки</h2>
+            
+            <div class="form-card">
+                <h3>Новая привычка</h3>
+                <form id="habit-form">
+                    <input type="text" id="habit-name" placeholder="Название привычки" required>
+                    <textarea id="habit-description" placeholder="Описание"></textarea>
+                    <select id="habit-category" required>
+                        <option value="">Выберите категорию</option>
+                        <option value="SPORT">Спорт</option>
+                        <option value="READING">Чтение</option>
+                        <option value="STUDY">Учёба</option>
+                        <option value="HEALTH">Здоровье</option>
+                        <option value="OTHER">Другое</option>
+                    </select>
+                    <select id="habit-frequency" required>
+                        <option value="DAILY">Ежедневно</option>
+                        <option value="WEEKLY">Еженедельно</option>
+                    </select>
+                    <input type="time" id="habit-reminder" title="Время напоминания">
+                    <button type="submit">Создать</button>
+                </form>
+            </div>
+
+            <div id="habits-list"></div>
+        </section>
+
+        <!-- Аналитика -->
+        <section id="analytics-section" style="display: none;">
+            <h2>Аналитика</h2>
+            <div id="analytics-content"></div>
+        </section>
+
+        <!-- Уведомления -->
+        <div id="notification"></div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
