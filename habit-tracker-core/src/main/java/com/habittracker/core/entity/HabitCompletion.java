@@ -2,6 +2,7 @@ package com.habittracker.core.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "habit_completions")
@@ -16,6 +17,9 @@ public class HabitCompletion {
 
     @Column(name = "completed_date", nullable = false)
     private LocalDate completedDate;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
 
     @Column(nullable = false)
     private boolean completed;
@@ -32,6 +36,9 @@ public class HabitCompletion {
 
     public LocalDate getCompletedDate() { return completedDate; }
     public void setCompletedDate(LocalDate completedDate) { this.completedDate = completedDate; }
+
+    public LocalDateTime getCompletedAt() { return completedAt; }
+    public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
 
     public boolean isCompleted() { return completed; }
     public void setCompleted(boolean completed) { this.completed = completed; }

@@ -38,8 +38,14 @@ public class AnalyticsService {
         long periodCompleted = completions.stream().filter(HabitCompletion::isCompleted).count();
         long totalCompleted = allCompletions.stream().filter(HabitCompletion::isCompleted).count();
 
+        long uniqueDaysCompleted = completions.stream()
+                .filter(HabitCompletion::isCompleted)
+                .map(HabitCompletion::getCompletedDate)
+                .distinct()
+                .count();
+
         int days = (int) java.time.temporal.ChronoUnit.DAYS.between(start, end) + 1;
-        double rate = days > 0 ? (periodCompleted * 100.0 / days) : 0;
+        double rate = days > 0 ? (uniqueDaysCompleted * 100.0 / days) : 0;
 
         int currentStreak = calculateCurrentStreak(allCompletions);
         int longestStreak = calculateLongestStreak(allCompletions);
@@ -47,7 +53,7 @@ public class AnalyticsService {
         List<CompletionDto> recent = completions.stream()
                 .sorted(Comparator.comparing(HabitCompletion::getCompletedDate).reversed())
                 .limit(30)
-                .map(c -> new CompletionDto(c.getId(), c.getHabit().getId(), c.getCompletedDate(), c.isCompleted(), c.getNote()))
+                .map(c -> new CompletionDto(c.getId(), c.getHabit().getId(), c.getCompletedDate(), c.getCompletedAt(), c.isCompleted(), c.getNote()))
                 .toList();
 
         Map<String, Long> byCategory = Map.of(habit.getCategory().name(), totalCompleted);

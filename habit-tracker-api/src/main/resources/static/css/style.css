@@ -324,6 +324,71 @@ section h2 {
     background: #c0392b;
 }
 
+/* Многоразовые привычки */
+.habit-card.multiple {
+    border-left-color: #f39c12;
+}
+
+.habit-card.multiple .today-completions {
+    background: #fff8e1;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.habit-card.multiple .today-completions h5 {
+    color: #f39c12;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+}
+
+.habit-card.multiple .completion-time {
+    display: inline-block;
+    background: #f39c12;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    margin: 3px;
+}
+
+.habit-card.multiple .add-completion {
+    background: #f39c12 !important;
+}
+
+.habit-card.multiple .add-completion:hover {
+    background: #d68910 !important;
+}
+
+.habit-card.multiple .completion-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 5px;
+    margin: 5px 0;
+}
+
+.habit-card.multiple .completion-item .time {
+    color: #333;
+    font-weight: 500;
+}
+
+.habit-card.multiple .completion-item .remove-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.habit-card.multiple .completion-item .remove-btn:hover {
+    background: #c0392b;
+}
+
 #analytics-overall {
     margin-bottom: 30px;
 }

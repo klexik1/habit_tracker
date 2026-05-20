@@ -3,6 +3,7 @@ package com.habittracker.core.service;
 import com.habittracker.core.dto.CreateHabitRequest;
 import com.habittracker.core.dto.HabitDto;
 import com.habittracker.core.entity.Habit;
+import com.habittracker.core.entity.HabitType;
 import com.habittracker.core.entity.User;
 import com.habittracker.core.exception.NotFoundException;
 import com.habittracker.core.repository.HabitRepository;
@@ -28,6 +29,7 @@ public class HabitService {
         habit.setDescription(request.description());
         habit.setCategory(request.category());
         habit.setFrequency(request.frequency());
+        habit.setHabitType(request.habitType() != null ? request.habitType() : HabitType.SINGLE);
         habit.setTargetCount(request.targetCount() != null ? request.targetCount() : 1);
         habit.setReminderTime(request.reminderTime());
         habit.setUser(user);
@@ -59,6 +61,7 @@ public class HabitService {
         habit.setDescription(request.description());
         habit.setCategory(request.category());
         habit.setFrequency(request.frequency());
+        habit.setHabitType(request.habitType() != null ? request.habitType() : habit.getHabitType());
         habit.setTargetCount(request.targetCount() != null ? request.targetCount() : 1);
         habit.setReminderTime(request.reminderTime());
         return toDto(habitRepository.save(habit));
@@ -71,6 +74,7 @@ public class HabitService {
 
     public HabitDto toDto(Habit habit) {
         Long totalCompletions = completionService.getTotalCompletions(habit.getId());
+        Long todayCompletions = completionService.getTodayCompletionCount(habit.getId());
         boolean completedToday = completionService.isCompletedToday(habit.getId());
         return new HabitDto(
                 habit.getId(),
@@ -78,10 +82,12 @@ public class HabitService {
                 habit.getDescription(),
                 habit.getCategory(),
                 habit.getFrequency(),
+                habit.getHabitType(),
                 habit.getTargetCount(),
                 habit.getReminderTime(),
                 habit.getCreatedAt(),
                 totalCompletions,
+                todayCompletions,
                 completedToday
         );
     }

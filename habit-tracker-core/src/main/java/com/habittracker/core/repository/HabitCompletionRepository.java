@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface HabitCompletionRepository extends JpaRepository<HabitCompletion, Long> {
-    Optional<HabitCompletion> findByHabitIdAndCompletedDate(Long habitId, LocalDate date);
+    List<HabitCompletion> findByHabitIdAndCompletedDate(Long habitId, LocalDate date);
     List<HabitCompletion> findByHabitIdAndCompletedDateBetween(Long habitId, LocalDate start, LocalDate end);
     List<HabitCompletion> findByHabitId(Long habitId);
 
@@ -19,4 +19,15 @@ public interface HabitCompletionRepository extends JpaRepository<HabitCompletion
 
     @Query("SELECT COUNT(hc) FROM HabitCompletion hc WHERE hc.habit.id = :habitId AND hc.completed = true AND hc.completedDate BETWEEN :start AND :end")
     Long countCompletedByHabitAndPeriod(@Param("habitId") Long habitId, @Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    @Query("SELECT COUNT(hc) FROM HabitCompletion hc WHERE hc.habit.id = :habitId AND hc.completed = true AND hc.completedDate = :date")
+    Long countCompletedToday(@Param("habitId") Long habitId, @Param("date") LocalDate date);
+
+    List<HabitCompletion> findByHabitIdAndCompletedDateAndCompletedTrue(Long habitId, LocalDate date);
+
+    @Query("SELECT hc FROM HabitCompletion hc WHERE hc.habit.id = :habitId AND hc.completedDate BETWEEN :start AND :end")
+    List<HabitCompletion> findAllWithDates(@Param("habitId") Long habitId, @Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    @Query("SELECT hc FROM HabitCompletion hc WHERE hc.habit.id = :habitId")
+    List<HabitCompletion> findAllByHabitId(@Param("habitId") Long habitId);
 }

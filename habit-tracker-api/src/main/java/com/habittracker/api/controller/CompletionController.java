@@ -26,11 +26,20 @@ public class CompletionController {
     }
 
     @PostMapping("/habit/{habitId}")
-    public ResponseEntity<CompletionDto> toggleCompletion(
+    public ResponseEntity<CompletionDto> markCompletion(
             @PathVariable Long habitId,
             Authentication auth) {
         User user = userService.findByUsername(auth.getName());
-        return ResponseEntity.ok(completionService.toggleCompletion(habitId, user));
+        return ResponseEntity.ok(completionService.markCompletion(habitId, user));
+    }
+
+    @DeleteMapping("/{completionId}")
+    public ResponseEntity<Void> cancelCompletion(
+            @PathVariable Long completionId,
+            Authentication auth) {
+        User user = userService.findByUsername(auth.getName());
+        completionService.cancelCompletion(completionId, user);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/habit/{habitId}")

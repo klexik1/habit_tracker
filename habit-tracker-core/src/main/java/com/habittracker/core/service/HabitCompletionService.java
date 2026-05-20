@@ -1,22 +1,26 @@
 package com.habittracker.core.service;
 
 import com.habittracker.core.dto.CompletionDto;
-import com.habittracker.core.dto.CompletionRequest;
 import com.habittracker.core.entity.Habit;
 import com.habittracker.core.entity.HabitCompletion;
+import com.habittracker.core.entity.HabitType;
 import com.habittracker.core.entity.User;
 import com.habittracker.core.exception.NotFoundException;
 import com.habittracker.core.repository.HabitCompletionRepository;
 import com.habittracker.core.repository.HabitRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @Transactional
 public class HabitCompletionService {
+    private static final Logger log = LoggerFactory.getLogger(HabitCompletionService.class);
     private final HabitCompletionRepository completionRepository;
     private final HabitRepository habitRepository;
 
@@ -25,7 +29,12 @@ public class HabitCompletionService {
         this.habitRepository = habitRepository;
     }
 
-    public CompletionDto toggleCompletion(Long habitId, User user) {
+    /**
+     * Отметить выполнение привычки.
+     * Для SINGLE — переключает выполнено/не выполнено за сегодня.
+     * Для MULTIPLE — всегда создаёт новую запись выполнения.
+     */
+    public CompletionDto markCompletion(Long habitId, User user) {
         Habit habit = habitRepository.findById(habitId)
                 .orElseThrow(() -> new NotFoundException("Habit not found"));
         if (!habit.getUser().getId().equals(user.getId())) {
@@ -33,22 +42,51 @@ public class HabitCompletionService {
         }
 
         LocalDate today = LocalDate.now();
-        HabitCompletion completion = completionRepository
-                .findByHabitIdAndCompletedDate(habitId, today)
-                .orElse(null);
 
-        if (completion == null) {
-            completion = new HabitCompletion();
+        if (habit.getHabitType() == HabitType.MULTIPLE) {
+            // Многоразовая — создаём новую запись каждый раз
+            HabitCompletion completion = new HabitCompletion();
             completion.setHabit(habit);
             completion.setCompletedDate(today);
+            completion.setCompletedAt(LocalDateTime.now());
             completion.setCompleted(true);
-            completion.setNote("Выполнено");
+            completion.setNote("Выполнено в " + completion.getCompletedAt().toLocalTime().withSecond(0).withNano(0));
+            return toDto(completionRepository.save(completion));
         } else {
-            completion.setCompleted(!completion.isCompleted());
-            completion.setNote(completion.isCompleted() ? "Выполнено" : "Отменено");
-        }
+            // Одноразовая — переключаем
+            HabitCompletion completion = completionRepository
+                    .findByHabitIdAndCompletedDate(habitId, today)
+                    .stream().findFirst().orElse(null);
 
-        return toDto(completionRepository.save(completion));
+            if (completion == null) {
+                completion = new HabitCompletion();
+                completion.setHabit(habit);
+                completion.setCompletedDate(today);
+                completion.setCompletedAt(LocalDateTime.now());
+                completion.setCompleted(true);
+                completion.setNote("Выполнено");
+            } else {
+                completion.setCompleted(!completion.isCompleted());
+                completion.setNote(completion.isCompleted() ? "Выполнено" : "Отменено");
+                if (completion.isCompleted()) {
+                    completion.setCompletedAt(LocalDateTime.now());
+                }
+            }
+
+            return toDto(completionRepository.save(completion));
+        }
+    }
+
+    /**
+     * Отменить конкретное выполнение (для многоразовых привычек)
+     */
+    public void cancelCompletion(Long completionId, User user) {
+        HabitCompletion completion = completionRepository.findById(completionId)
+                .orElseThrow(() -> new NotFoundException("Completion not found"));
+        if (!completion.getHabit().getUser().getId().equals(user.getId())) {
+            throw new NotFoundException("Completion not found");
+        }
+        completionRepository.delete(completion);
     }
 
     public List<CompletionDto> getCompletions(Long habitId, User user, LocalDate start, LocalDate end) {
@@ -58,8 +96,8 @@ public class HabitCompletionService {
             throw new NotFoundException("Habit not found");
         }
 
-        return completionRepository.findByHabitIdAndCompletedDateBetween(habitId, start, end)
-                .stream()
+        List<HabitCompletion> all = completionRepository.findAllByHabitId(habitId);
+        return all.stream()
                 .map(this::toDto)
                 .toList();
     }
@@ -79,10 +117,21 @@ public class HabitCompletionService {
         );
     }
 
+    public long getTodayCompletionCount(Long habitId) {
+        return completionRepository.countCompletedToday(habitId, LocalDate.now());
+    }
+
     public boolean isCompletedToday(Long habitId) {
         return completionRepository.findByHabitIdAndCompletedDate(habitId, LocalDate.now())
-                .map(HabitCompletion::isCompleted)
-                .orElse(false);
+                .stream()
+                .anyMatch(HabitCompletion::isCompleted);
+    }
+
+    public List<CompletionDto> getTodayDetailedCompletions(Long habitId) {
+        return completionRepository.findByHabitIdAndCompletedDateAndCompletedTrue(habitId, LocalDate.now())
+                .stream()
+                .map(this::toDto)
+                .toList();
     }
 
     private CompletionDto toDto(HabitCompletion completion) {
@@ -90,6 +139,7 @@ public class HabitCompletionService {
                 completion.getId(),
                 completion.getHabit().getId(),
                 completion.getCompletedDate(),
+                completion.getCompletedAt(),
                 completion.isCompleted(),
                 completion.getNote()
         );

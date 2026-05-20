@@ -3,6 +3,7 @@ package com.habittracker.core.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import com.habittracker.core.entity.HabitType;
 
 @Entity
 @Table(name = "habits")
@@ -24,6 +25,10 @@ public class Habit {
     @Column(nullable = false)
     private Frequency frequency = Frequency.DAILY;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "habit_type", nullable = false)
+    private HabitType habitType = HabitType.SINGLE;
+
     @Column(name = "target_count")
     private Integer targetCount = 1;
 
@@ -36,6 +41,9 @@ public class Habit {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @OneToMany(mappedBy = "habit", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<HabitCompletion> completions = new java.util.ArrayList<>();
 
     public Habit() {}
 
@@ -53,6 +61,9 @@ public class Habit {
 
     public Frequency getFrequency() { return frequency; }
     public void setFrequency(Frequency frequency) { this.frequency = frequency; }
+
+    public HabitType getHabitType() { return habitType; }
+    public void setHabitType(HabitType habitType) { this.habitType = habitType; }
 
     public Integer getTargetCount() { return targetCount; }
     public void setTargetCount(Integer targetCount) { this.targetCount = targetCount; }
