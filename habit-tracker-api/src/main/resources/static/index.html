@@ -169,6 +169,13 @@
                         <button class="btn-save" onclick="saveProfileEmail()">💾 Сохранить email</button>
                     </div>
                     <div class="profile-field">
+                        <label>📧 Email-уведомления</label>
+                        <label class="notification-toggle" style="display: inline-flex; margin-top: 8px;">
+                            <input type="checkbox" id="profile-email-notifications" onchange="saveEmailNotifications(this.checked)">
+                            <span>Отправлять напоминания на почту</span>
+                        </label>
+                    </div>
+                    <div class="profile-field">
                         <label>Дата регистрации</label>
                         <div id="profile-created" class="profile-value">—</div>
                     </div>

@@ -1067,6 +1067,32 @@ section h2 {
     min-width: 200px;
 }
 
+.profile-field .notification-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #333;
+    background: #f8f9fa;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    transition: all 0.2s;
+    width: auto;
+}
+
+.profile-field .notification-toggle:hover {
+    border-color: #667eea;
+}
+
+.profile-field .notification-toggle input {
+    width: 20px;
+    height: 20px;
+    accent-color: #667eea;
+    cursor: pointer;
+}
+
 .btn-cancel {
     background: #eee;
     color: #333;

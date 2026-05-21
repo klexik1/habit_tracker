@@ -597,6 +597,7 @@ async function loadProfile() {
 
         document.getElementById('profile-username').textContent = profile.username;
         document.getElementById('profile-email-input').value = profile.email || '';
+        document.getElementById('profile-email-notifications').checked = profile.emailNotificationsEnabled || false;
         document.getElementById('profile-created').textContent = profile.createdAt
             ? new Date(profile.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
             : '—';
@@ -635,6 +636,24 @@ async function saveProfileEmail() {
         loadProfile();
     } catch (error) {
         showNotification('Ошибка обновления email', 'error');
+    }
+}
+
+async function saveEmailNotifications(enabled) {
+    try {
+        const response = await fetch(`${API_URL}/users/me/email-notifications`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ enabled })
+        });
+
+        if (!response.ok) throw new Error('Ошибка');
+        showNotification(enabled ? '📧 Email-уведомления включены' : '📧 Email-уведомления выключены', 'success');
+    } catch (error) {
+        showNotification('Ошибка сохранения настроек', 'error');
     }
 }
 

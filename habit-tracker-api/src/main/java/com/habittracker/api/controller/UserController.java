@@ -33,6 +33,15 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
+    @PutMapping("/me/email-notifications")
+    public ResponseEntity<Void> updateEmailNotifications(
+            @RequestBody Map<String, Boolean> body,
+            Authentication auth) {
+        User user = userService.findByUsername(auth.getName());
+        userService.updateEmailNotifications(user, body.get("enabled"));
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/me/reset")
     public ResponseEntity<Void> resetProfile(
             @RequestBody Map<String, String> body,
