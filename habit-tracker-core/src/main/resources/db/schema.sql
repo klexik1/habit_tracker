@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS habits (
     target_count INTEGER DEFAULT 1,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     reminder_time TIME,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT habits_frequency_check CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY'))
 );
 
 -- Habit completions table

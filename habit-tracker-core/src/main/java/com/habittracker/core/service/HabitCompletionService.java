@@ -96,8 +96,8 @@ public class HabitCompletionService {
             throw new NotFoundException("Habit not found");
         }
 
-        List<HabitCompletion> all = completionRepository.findAllByHabitId(habitId);
-        return all.stream()
+        List<HabitCompletion> completions = completionRepository.findByHabitIdAndCompletedDateBetween(habitId, start, end);
+        return completions.stream()
                 .map(this::toDto)
                 .toList();
     }

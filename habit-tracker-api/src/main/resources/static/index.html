@@ -70,6 +70,7 @@
                         <select id="habit-frequency" required>
                             <option value="DAILY">📅 Каждый день</option>
                             <option value="WEEKLY">📆 Каждую неделю</option>
+                            <option value="MONTHLY">📅 Каждый месяц</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -88,6 +89,16 @@
             </div>
 
             <h2 class="section-title">📋 Мои привычки</h2>
+            <div class="habit-filters">
+                <label class="filter-toggle">
+                    <input type="checkbox" id="filter-single" checked onchange="loadHabits()">
+                    <span>☑️ Одноразовые</span>
+                </label>
+                <label class="filter-toggle">
+                    <input type="checkbox" id="filter-multiple" checked onchange="loadHabits()">
+                    <span>🔁 Многоразовые</span>
+                </label>
+            </div>
             <div id="habits-list"></div>
         </section>
 
@@ -107,6 +118,50 @@
             <div id="analytics-content">
             </div>
         </section>
+
+        <!-- Модалка редактирования -->
+        <div id="edit-modal" class="modal">
+            <div class="modal-content">
+                <h3>✏️ Редактировать привычку</h3>
+                <form id="edit-habit-form" onsubmit="saveHabitEdit(event)">
+                    <input type="hidden" id="edit-habit-id">
+                    <div class="form-group">
+                        <label>Название</label>
+                        <input type="text" id="edit-habit-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea id="edit-habit-description" rows="3" maxlength="500"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Категория</label>
+                        <select id="edit-habit-category">
+                            <option value="OTHER">📌 Другое</option>
+                            <option value="SPORT">🏃 Спорт</option>
+                            <option value="READING">📚 Чтение</option>
+                            <option value="STUDY">📖 Учёба</option>
+                            <option value="HEALTH">💪 Здоровье</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Частота выполнения</label>
+                        <select id="edit-habit-frequency">
+                            <option value="DAILY">📅 Каждый день</option>
+                            <option value="WEEKLY">📆 Каждую неделю</option>
+                            <option value="MONTHLY">📅 Каждый месяц</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="edit-target-group" style="display:none;">
+                        <label>Цель на день</label>
+                        <input type="number" id="edit-habit-target" min="0" value="1">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn-save">💾 Сохранить</button>
+                        <button type="button" class="btn-cancel" onclick="closeEditModal()">❌ Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- Уведомления -->
         <div id="notification"></div>

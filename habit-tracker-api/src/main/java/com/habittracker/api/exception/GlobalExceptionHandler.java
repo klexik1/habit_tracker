@@ -38,7 +38,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
+        ex.printStackTrace();
+        String msg = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+        if (ex.getCause() != null && ex.getCause().getMessage() != null) {
+            msg += " | Caused by: " + ex.getCause().getMessage();
+        }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Internal server error: " + ex.getMessage()));
+                .body(Map.of("error", msg));
     }
 }
