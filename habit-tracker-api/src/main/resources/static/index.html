@@ -68,13 +68,14 @@
                     </div>
                     <div class="form-group">
                         <label for="habit-category">Категория *</label>
-                        <select id="habit-category" required>
-                            <option value="OTHER" selected>📌 Другое</option>
-                            <option value="SPORT">🏃 Спорт</option>
-                            <option value="READING">📚 Чтение</option>
-                            <option value="STUDY">📖 Учёба</option>
-                            <option value="HEALTH">💪 Здоровье</option>
-                        </select>
+                        <input type="text" id="habit-category" list="category-list" placeholder="Например: Спорт" required>
+                        <datalist id="category-list">
+                            <option value="🏃 Спорт">
+                            <option value="📚 Чтение">
+                            <option value="📖 Учёба">
+                            <option value="💪 Здоровье">
+                            <option value="📌 Другое">
+                        </datalist>
                     </div>
                     <div class="form-group">
                         <label for="habit-frequency">Частота выполнения *</label>
@@ -225,13 +226,14 @@
                     </div>
                     <div class="form-group">
                         <label>Категория</label>
-                        <select id="edit-habit-category">
-                            <option value="OTHER">📌 Другое</option>
-                            <option value="SPORT">🏃 Спорт</option>
-                            <option value="READING">📚 Чтение</option>
-                            <option value="STUDY">📖 Учёба</option>
-                            <option value="HEALTH">💪 Здоровье</option>
-                        </select>
+                        <input type="text" id="edit-habit-category" list="edit-category-list" placeholder="Например: Спорт">
+                        <datalist id="edit-category-list">
+                            <option value="🏃 Спорт">
+                            <option value="📚 Чтение">
+                            <option value="📖 Учёба">
+                            <option value="💪 Здоровье">
+                            <option value="📌 Другое">
+                        </datalist>
                     </div>
                     <div class="form-group">
                         <label>Частота выполнения</label>

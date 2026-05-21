@@ -38,7 +38,7 @@ class HabitServiceTest {
         CreateHabitRequest request = new CreateHabitRequest(
                 "Morning Run",
                 "Daily morning jog",
-                Category.SPORT,
+                "SPORT",
                 Frequency.DAILY,
                 null,
                 1,
@@ -65,7 +65,7 @@ class HabitServiceTest {
 
         assertNotNull(result);
         assertEquals("Morning Run", result.name());
-        assertEquals(Category.SPORT, result.category());
+        assertEquals("SPORT", result.category());
         verify(habitRepository).save(any(Habit.class));
     }
 }

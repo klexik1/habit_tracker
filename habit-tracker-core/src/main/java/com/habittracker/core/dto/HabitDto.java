@@ -10,7 +10,7 @@ public record HabitDto(
     Long id,
     String name,
     String description,
-    Category category,
+    String category,
     Frequency frequency,
     HabitType habitType,
     Integer targetCount,

@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS habits (
 -- Обновить constraint и добавить колонку если таблица уже существовала
 ALTER TABLE habits DROP CONSTRAINT IF EXISTS habits_frequency_check;
 ALTER TABLE habits ADD CONSTRAINT habits_frequency_check CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'INTERVAL'));
+ALTER TABLE habits DROP CONSTRAINT IF EXISTS habits_category_check;
+ALTER TABLE habits ALTER COLUMN category TYPE VARCHAR(50);
 ALTER TABLE habits ADD COLUMN IF NOT EXISTS interval_minutes INTEGER;
 ALTER TABLE habits ADD COLUMN IF NOT EXISTS reminder_hour VARCHAR(5);
 

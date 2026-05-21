@@ -1248,7 +1248,7 @@ async function openEditModal(habitId) {
         document.getElementById('edit-habit-id').value = habit.id;
         document.getElementById('edit-habit-name').value = habit.name;
         document.getElementById('edit-habit-description').value = habit.description || '';
-        document.getElementById('edit-habit-category').value = habit.category || 'OTHER';
+        document.getElementById('edit-habit-category').value = getCategoryName(habit.category || 'OTHER');
         document.getElementById('edit-habit-frequency').value = habit.frequency || 'DAILY';
         document.getElementById('edit-habit-notifications').checked = !!habit.notificationsEnabled;
         const intervalMins = habit.intervalMinutes || 240;
@@ -1626,6 +1626,13 @@ async function deleteHabit(habitId) {
 }
 
 function getCategoryName(category) {
+    if (!category) return '📌 Другое';
+    // Если категория уже содержит эмодзи, возвращаем как есть
+    if (category.startsWith('🏃') || category.startsWith('📚') || category.startsWith('📖') ||
+        category.startsWith('💪') || category.startsWith('📌')) {
+        return category;
+    }
+    // Маппинг старых значений
     const names = {
         'SPORT': '🏃 Спорт',
         'READING': '📚 Чтение',

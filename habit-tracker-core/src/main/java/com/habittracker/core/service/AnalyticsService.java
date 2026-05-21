@@ -56,7 +56,7 @@ public class AnalyticsService {
                 .map(c -> new CompletionDto(c.getId(), c.getHabit().getId(), c.getCompletedDate(), c.getCompletedAt(), c.isCompleted(), c.getNote()))
                 .toList();
 
-        Map<String, Long> byCategory = Map.of(habit.getCategory().name(), totalCompleted);
+        Map<String, Long> byCategory = Map.of(habit.getCategory(), totalCompleted);
 
         return new AnalyticsDto(
                 habit.getId(),

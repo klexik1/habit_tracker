@@ -16,9 +16,8 @@ public class Habit {
 
     private String description;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Category category;
+    private String category = "OTHER";
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -64,8 +63,8 @@ public class Habit {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public Category getCategory() { return category; }
-    public void setCategory(Category category) { this.category = category; }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
     public Frequency getFrequency() { return frequency; }
     public void setFrequency(Frequency frequency) { this.frequency = frequency; }
