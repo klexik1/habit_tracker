@@ -7,6 +7,8 @@ public record ProfileDto(
     String username,
     String email,
     Boolean emailNotificationsEnabled,
+    Boolean notifyAtMidnight,
+    Boolean notifyHourBefore,
     LocalDateTime createdAt,
     long habitCount,
     long totalCompletions

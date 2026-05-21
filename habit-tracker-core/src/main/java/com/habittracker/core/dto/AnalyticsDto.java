@@ -11,6 +11,8 @@ public record AnalyticsDto(
     double completionRate,
     int currentStreak,
     int longestStreak,
+    int longestStreakWeeks,
+    int longestStreakMonths,
     List<CompletionDto> recentCompletions,
     Map<String, Long> completionsByCategory,
     String habitCreatedAt

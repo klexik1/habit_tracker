@@ -49,6 +49,8 @@ public class AnalyticsService {
 
         int currentStreak = calculateCurrentStreak(allCompletions);
         int longestStreak = calculateLongestStreak(allCompletions);
+        int longestStreakWeeks = calculateLongestStreakWeeks(allCompletions);
+        int longestStreakMonths = calculateLongestStreakMonths(allCompletions);
 
         List<CompletionDto> recent = completions.stream()
                 .sorted(Comparator.comparing(HabitCompletion::getCompletedDate).reversed())
@@ -66,6 +68,8 @@ public class AnalyticsService {
                 Math.round(rate * 100.0) / 100.0,
                 currentStreak,
                 longestStreak,
+                longestStreakWeeks,
+                longestStreakMonths,
                 recent,
                 byCategory,
                 habit.getCreatedAt() != null ? habit.getCreatedAt().toString() : null
@@ -107,6 +111,85 @@ public class AnalyticsService {
         int current = 1;
         for (int i = 1; i < dates.size(); i++) {
             if (dates.get(i).equals(dates.get(i - 1).plusDays(1))) {
+                current++;
+                max = Math.max(max, current);
+            } else {
+                current = 1;
+            }
+        }
+        return max;
+    }
+
+    private int calculateLongestStreakWeeks(List<HabitCompletion> all) {
+        List<LocalDate> dates = all.stream()
+                .filter(HabitCompletion::isCompleted)
+                .map(HabitCompletion::getCompletedDate)
+                .sorted()
+                .distinct()
+                .toList();
+
+        if (dates.isEmpty()) return 0;
+
+        java.time.temporal.WeekFields wf = java.time.temporal.WeekFields.ISO;
+        record WeekKey(int year, int week) implements Comparable<WeekKey> {
+            public int compareTo(WeekKey o) {
+                return year != o.year ? Integer.compare(year, o.year) : Integer.compare(week, o.week);
+            }
+        }
+
+        Set<WeekKey> weeks = new java.util.TreeSet<>();
+        for (LocalDate d : dates) {
+            weeks.add(new WeekKey(d.get(wf.weekBasedYear()), d.get(wf.weekOfWeekBasedYear())));
+        }
+
+        List<WeekKey> weekList = new ArrayList<>(weeks);
+        int max = 1;
+        int current = 1;
+        for (int i = 1; i < weekList.size(); i++) {
+            LocalDate prevDate = LocalDate.of(weekList.get(i - 1).year, 1, 4)
+                    .with(wf.weekOfWeekBasedYear(), weekList.get(i - 1).week)
+                    .with(wf.dayOfWeek(), 1);
+            LocalDate currDate = LocalDate.of(weekList.get(i).year, 1, 4)
+                    .with(wf.weekOfWeekBasedYear(), weekList.get(i).week)
+                    .with(wf.dayOfWeek(), 1);
+            if (prevDate.plusWeeks(1).equals(currDate)) {
+                current++;
+                max = Math.max(max, current);
+            } else {
+                current = 1;
+            }
+        }
+        return max;
+    }
+
+    private int calculateLongestStreakMonths(List<HabitCompletion> all) {
+        List<LocalDate> dates = all.stream()
+                .filter(HabitCompletion::isCompleted)
+                .map(HabitCompletion::getCompletedDate)
+                .sorted()
+                .distinct()
+                .toList();
+
+        if (dates.isEmpty()) return 0;
+
+        record MonthKey(int year, int month) implements Comparable<MonthKey> {
+            public int compareTo(MonthKey o) {
+                return year != o.year ? Integer.compare(year, o.year) : Integer.compare(month, o.month);
+            }
+        }
+
+        Set<MonthKey> months = new java.util.TreeSet<>();
+        for (LocalDate d : dates) {
+            months.add(new MonthKey(d.getYear(), d.getMonthValue()));
+        }
+
+        List<MonthKey> monthList = new ArrayList<>(months);
+        int max = 1;
+        int current = 1;
+        for (int i = 1; i < monthList.size(); i++) {
+            java.time.YearMonth prev = java.time.YearMonth.of(monthList.get(i - 1).year, monthList.get(i - 1).month);
+            java.time.YearMonth curr = java.time.YearMonth.of(monthList.get(i).year, monthList.get(i).month);
+            if (prev.plusMonths(1).equals(curr)) {
                 current++;
                 max = Math.max(max, current);
             } else {

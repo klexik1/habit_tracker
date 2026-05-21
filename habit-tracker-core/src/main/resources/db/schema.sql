@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications_enabled BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_at_midnight BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_hour_before BOOLEAN DEFAULT false;
 
 -- Habits table
 CREATE TABLE IF NOT EXISTS habits (

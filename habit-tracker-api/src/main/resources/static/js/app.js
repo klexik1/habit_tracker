@@ -403,11 +403,19 @@ function selectEditMonthDay(el) {
 function startClock() {
     const update = () => {
         const now = getTestDate();
-        document.getElementById('clock-time').textContent = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('clock-time').textContent = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         document.getElementById('clock-date').textContent = now.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        updateTimers();
     };
     update();
     setInterval(update, 1000);
+
+    // Автообновление списка привычек каждую минуту, чтобы таймеры оставались актуальными
+    setInterval(() => {
+        if (token && document.getElementById('habits-section').style.display !== 'none') {
+            loadHabits(true);
+        }
+    }, 60000);
 }
 
 function initSkipDayButton() {
@@ -435,21 +443,31 @@ function initSkipDayButton() {
 // ============ ПУШ-УВЕДОМЛЕНИЯ ============
 function initPushNotifications() {
     if (!('Notification' in window)) return;
-    // Запрашиваем разрешение при первом входе
     if (Notification.permission === 'default') {
         Notification.requestPermission();
     }
-    // Проверяем каждую минуту
-    setInterval(checkReminders, 60000);
+    window._lastCheckedMinuteKey = null;
+    setInterval(checkReminders, 1000);
     checkReminders();
+}
+
+function parseTimeToMinutes(timeStr) {
+    if (!timeStr) return null;
+    const [h, m] = timeStr.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return null;
+    return h * 60 + m;
 }
 
 async function checkReminders() {
     if (!token || Notification.permission !== 'granted') return;
     const now = getTestDate();
-    const currentHour = String(now.getHours()).padStart(2, '0');
-    const currentMin = String(now.getMinutes()).padStart(2, '0');
-    const currentHm = `${currentHour}:${currentMin}`;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayStr = toLocalIso(now);
+    const minuteKey = `${todayStr}-${nowMinutes}`;
+
+    // Вся логика — ровно один раз в минуту
+    if (window._lastCheckedMinuteKey === minuteKey) return;
+    window._lastCheckedMinuteKey = minuteKey;
 
     try {
         const res = await fetch(`${API_URL}/habits`, {
@@ -458,34 +476,65 @@ async function checkReminders() {
         if (!res.ok) return;
         const habits = await res.json();
 
-        for (const habit of habits) {
-            if (!habit.notificationsEnabled || !habit.reminderTime) continue;
-            const freq = habit.frequency || 'DAILY';
-            const val = habit.reminderTime;
-            let shouldNotify = false;
+        const notifyMidnight = window.profileNotifyMidnight;
+        const notifyHourBefore = window.profileNotifyHourBefore;
 
+        for (const habit of habits) {
+            if (!habit.notificationsEnabled) continue;
+            const freq = habit.frequency || 'DAILY';
+            const val = habit.reminderTime || '';
+            const hour = habit.reminderHour || '00:00';
+
+            // Сегодня ли день напоминания?
+            let isToday = false;
             if (freq === 'DAILY' || freq === 'INTERVAL') {
-                // Сравниваем часы:минуты
-                shouldNotify = val === currentHm;
+                isToday = true;
             } else if (freq === 'WEEKLY') {
-                // Сравниваем день недели (1=Пн, 7=Вс)
                 const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
-                shouldNotify = parseInt(val) === dayOfWeek;
+                isToday = parseInt(val) === dayOfWeek;
             } else if (freq === 'MONTHLY') {
-                // Сравниваем день месяца; если выбранный день > дней в месяце — уведомляем в последний день
                 const day = parseInt(val) || 1;
-                const year = now.getFullYear();
-                const month = now.getMonth();
-                const lastDay = new Date(year, month + 1, 0).getDate();
-                shouldNotify = now.getDate() === day || (day > lastDay && now.getDate() === lastDay);
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                isToday = now.getDate() === day || (day > lastDay && now.getDate() === lastDay);
             }
 
-            if (shouldNotify) {
+            // Время привычки в минутах от 00:00
+            let targetMinutes = null;
+            if (freq === 'DAILY' || freq === 'INTERVAL') {
+                targetMinutes = parseTimeToMinutes(val);
+            } else if (isToday) {
+                targetMinutes = parseTimeToMinutes(hour);
+            }
+
+            // 1. Точное уведомление в запланированное время
+            if (targetMinutes !== null && targetMinutes === nowMinutes) {
                 new Notification('⏰ Напоминание о привычке', {
                     body: `Пора выполнить: «${habit.name}»`,
                     icon: '📊',
-                    tag: `habit-${habit.id}-${toLocalIso(now)}`
+                    tag: `habit-exact-${habit.id}-${todayStr}-${nowMinutes}`
                 });
+            }
+
+            // 2. Уведомление в 00:00
+            if (nowMinutes === 0 && notifyMidnight && isToday) {
+                new Notification('📅 Напоминания на сегодня', {
+                    body: `Сегодня запланировано: «${habit.name}»`,
+                    icon: '📅',
+                    tag: `habit-midnight-${habit.id}-${todayStr}`
+                });
+            }
+
+            // 3. Уведомление за час до (только если остался ровно 1 час)
+            if (notifyHourBefore && targetMinutes !== null) {
+                let diff = targetMinutes - nowMinutes;
+                if (diff < 0) diff += 24 * 60;
+                if (diff === 60) {
+                    new Notification('⏰ Скоро время привычки', {
+                        body: `Через час: «${habit.name}»`,
+                        icon: '⏳',
+                        tag: `habit-1h-${habit.id}-${todayStr}-${nowMinutes}`
+                    });
+                }
             }
         }
     } catch (e) {
@@ -598,6 +647,12 @@ async function loadProfile() {
         document.getElementById('profile-username').textContent = profile.username;
         document.getElementById('profile-email-input').value = profile.email || '';
         document.getElementById('profile-email-notifications').checked = profile.emailNotificationsEnabled || false;
+        const midnightEl = document.getElementById('profile-notify-midnight');
+        const hourBeforeEl = document.getElementById('profile-notify-hour-before');
+        if (midnightEl) midnightEl.checked = profile.notifyAtMidnight || false;
+        if (hourBeforeEl) hourBeforeEl.checked = profile.notifyHourBefore || false;
+        window.profileNotifyMidnight = profile.notifyAtMidnight || false;
+        window.profileNotifyHourBefore = profile.notifyHourBefore || false;
         document.getElementById('profile-created').textContent = profile.createdAt
             ? new Date(profile.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
             : '—';
@@ -654,6 +709,27 @@ async function saveEmailNotifications(enabled) {
         showNotification(enabled ? '📧 Email-уведомления включены' : '📧 Email-уведомления выключены', 'success');
     } catch (error) {
         showNotification('Ошибка сохранения настроек', 'error');
+    }
+}
+
+async function savePushNotificationSettings() {
+    const notifyAtMidnight = document.getElementById('profile-notify-midnight')?.checked || false;
+    const notifyHourBefore = document.getElementById('profile-notify-hour-before')?.checked || false;
+    window.profileNotifyMidnight = notifyAtMidnight;
+    window.profileNotifyHourBefore = notifyHourBefore;
+    try {
+        const response = await fetch(`${API_URL}/users/me/push-notifications`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ notifyAtMidnight, notifyHourBefore })
+        });
+        if (!response.ok) throw new Error('Ошибка');
+        showNotification('🔔 Настройки push-уведомлений сохранены', 'success');
+    } catch (error) {
+        showNotification('Ошибка сохранения настроек push-уведомлений', 'error');
     }
 }
 
@@ -954,9 +1030,12 @@ async function loadHabits(preserveScroll = false) {
 
     if (preserveScroll) {
         scrollY = window.scrollY;
-        const currentHeight = container.offsetHeight;
+    }
+    const currentHeight = container.offsetHeight;
+    if (currentHeight > 0) {
         container.style.minHeight = currentHeight + 'px';
-    } else {
+    }
+    if (!preserveScroll) {
         container.innerHTML = '<div class="loading">Загрузка...</div>';
     }
 
@@ -1212,8 +1291,8 @@ async function loadHabits(preserveScroll = false) {
         console.error('Load habits error:', error);
         container.innerHTML = '<div class="empty-state">Ошибка загрузки привычек. Обновите страницу.</div>';
     } finally {
+        container.style.minHeight = '';
         if (preserveScroll) {
-            container.style.minHeight = '';
             window.scrollTo(0, scrollY);
         }
     }
@@ -1732,6 +1811,7 @@ function getUpcomingScore(habit) {
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
     if (freq === 'DAILY' || freq === 'INTERVAL') {
+        if (!val) return Infinity;
         const [h, m] = val.split(':').map(Number);
         const rMin = (h || 0) * 60 + (m || 0);
         let diff = rMin - nowMinutes;
@@ -1767,9 +1847,16 @@ function formatReminderLabel(habit) {
     const hour = habit.reminderHour || '';
     const timeSuffix = hour ? ` в ${hour}` : '';
 
+    function wrapTimer(timer) {
+        if (!timer) return '';
+        const safeVal = (val || '').replace(/"/g, '&quot;');
+        const safeHour = (hour || '').replace(/"/g, '&quot;');
+        return ` · <span class="habit-timer" data-freq="${freq}" data-val="${safeVal}" data-hour="${safeHour}" data-interval="${habit.intervalMinutes || ''}">${timer}</span>`;
+    }
+
     if (freq === 'DAILY') {
         const timer = getTimeUntil(freq, val, null, null);
-        return val ? `⏰ ${val}${timer ? ` · ${timer}` : ''}` : 'Без времени';
+        return val ? `⏰ ${val}${wrapTimer(timer)}` : 'Без времени';
     }
     if (freq === 'WEEKLY') {
         const dayData = {
@@ -1784,13 +1871,13 @@ function formatReminderLabel(habit) {
         const day = parseInt(val) || 1;
         const data = dayData[day] || dayData[1];
         const timer = getTimeUntil(freq, val, hour, null);
-        return `📅 ${data.prefix} ${data.name}${timeSuffix}${timer ? ` · ${timer}` : ''}`;
+        return `📅 ${data.prefix} ${data.name}${timeSuffix}${wrapTimer(timer)}`;
     }
     if (freq === 'MONTHLY') {
         const day = parseInt(val) || 1;
         const base = day >= 29 ? `📅 Каждый месяц (${day}-е или последний день)` : `📅 Каждое ${day}-е число`;
         const timer = getTimeUntil(freq, val, hour, null);
-        return `${base}${timeSuffix}${timer ? ` · ${timer}` : ''}`;
+        return `${base}${timeSuffix}${wrapTimer(timer)}`;
     }
     if (freq === 'INTERVAL') {
         const totalMinutes = habit.intervalMinutes || 240;
@@ -1806,7 +1893,7 @@ function formatReminderLabel(habit) {
         } else {
             intervalText = `${minutes} м`;
         }
-        return `⏱️ Каждые ${intervalText} (с ${start})${timer ? ` · ${timer}` : ''}`;
+        return `⏱️ Каждые ${intervalText} (с ${start})${wrapTimer(timer)}`;
     }
     return '';
 }
@@ -1878,6 +1965,23 @@ function getTimeUntil(freq, val, hour, intervalMinutes) {
     return `через ${mins}м`;
 }
 
+function updateTimers() {
+    document.querySelectorAll('.habit-timer').forEach(span => {
+        const freq = span.dataset.freq;
+        const val = span.dataset.val;
+        let hour = span.dataset.hour;
+        const interval = span.dataset.interval;
+        // Для INTERVAL время хранится в reminderTime (val), reminderHour пустой
+        if (freq === 'INTERVAL') {
+            hour = val;
+        }
+        const timer = getTimeUntil(freq, val, hour, interval ? parseInt(interval) : null);
+        if (timer) {
+            span.textContent = timer;
+        }
+    });
+}
+
 // ==================== АНАЛИТИКА ====================
 
 async function loadHabitsForAnalytics() {
@@ -1925,8 +2029,12 @@ async function loadOverallAnalytics() {
         const multipleHabits = habits.filter(h => h.habitType === 'MULTIPLE');
 
         let totalCompletions = 0;
-        let maxStreak = 0;
-        let maxStreakHabit = '';
+        let maxStreakDays = 0;
+        let maxStreakDaysHabit = '';
+        let maxStreakWeeks = 0;
+        let maxStreakWeeksHabit = '';
+        let maxStreakMonths = 0;
+        let maxStreakMonthsHabit = '';
         let mostActiveHabit = '';
         let mostActiveCompletions = 0;
         let mostActiveMultiple = '';
@@ -1956,13 +2064,21 @@ async function loadOverallAnalytics() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
-            if (analyticsRes.ok) {
-                const analytics = await analyticsRes.json();
-                if (analytics.longestStreak > maxStreak) {
-                    maxStreak = analytics.longestStreak;
-                    maxStreakHabit = habit.name;
+                if (analyticsRes.ok) {
+                    const analytics = await analyticsRes.json();
+                    if (analytics.longestStreak > maxStreakDays) {
+                        maxStreakDays = analytics.longestStreak;
+                        maxStreakDaysHabit = habit.name;
+                    }
+                    if (analytics.longestStreakWeeks > maxStreakWeeks) {
+                        maxStreakWeeks = analytics.longestStreakWeeks;
+                        maxStreakWeeksHabit = habit.name;
+                    }
+                    if (analytics.longestStreakMonths > maxStreakMonths) {
+                        maxStreakMonths = analytics.longestStreakMonths;
+                        maxStreakMonthsHabit = habit.name;
+                    }
                 }
-            }
         }
 
         let topCategory = 'OTHER';
@@ -1995,8 +2111,16 @@ async function loadOverallAnalytics() {
                         <div class="label">💪 Всего выполнений</div>
                     </div>
                     <div class="stat-item">
-                        <div class="value">${maxStreak}</div>
-                        <div class="label">🏆 Лучшая серия (${maxStreakHabit || '—'})</div>
+                        <div class="value">${maxStreakDays}</div>
+                        <div class="label">🏆 Лучшая серия по дням (${maxStreakDaysHabit || '—'})</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${maxStreakWeeks}</div>
+                        <div class="label">🏆 Лучшая серия по неделям (${maxStreakWeeksHabit || '—'})</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${maxStreakMonths}</div>
+                        <div class="label">🏆 Лучшая серия по месяцам (${maxStreakMonthsHabit || '—'})</div>
                     </div>
                     <div class="stat-item">
                         <div class="value">${mostActiveCompletions}</div>
@@ -2161,7 +2285,15 @@ async function loadHabitAnalytics() {
                     </div>
                     <div class="stat-item">
                         <div class="value">${analytics.longestStreak}</div>
-                        <div class="label">🏆 Лучшая серия</div>
+                        <div class="label">🏆 Лучшая серия (дни)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${analytics.longestStreakWeeks}</div>
+                        <div class="label">🏆 Лучшая серия (недели)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">${analytics.longestStreakMonths}</div>
+                        <div class="label">🏆 Лучшая серия (месяцы)</div>
                     </div>
                     <div class="stat-item">
                         <div class="value">${analytics.periodCompletions}</div>

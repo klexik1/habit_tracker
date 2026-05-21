@@ -22,6 +22,12 @@ public class User {
     @Column(name = "email_notifications_enabled")
     private Boolean emailNotificationsEnabled = false;
 
+    @Column(name = "notify_at_midnight")
+    private Boolean notifyAtMidnight = false;
+
+    @Column(name = "notify_hour_before")
+    private Boolean notifyHourBefore = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -41,6 +47,12 @@ public class User {
 
     public Boolean getEmailNotificationsEnabled() { return emailNotificationsEnabled; }
     public void setEmailNotificationsEnabled(Boolean emailNotificationsEnabled) { this.emailNotificationsEnabled = emailNotificationsEnabled; }
+
+    public Boolean getNotifyAtMidnight() { return notifyAtMidnight; }
+    public void setNotifyAtMidnight(Boolean notifyAtMidnight) { this.notifyAtMidnight = notifyAtMidnight; }
+
+    public Boolean getNotifyHourBefore() { return notifyHourBefore; }
+    public void setNotifyHourBefore(Boolean notifyHourBefore) { this.notifyHourBefore = notifyHourBefore; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

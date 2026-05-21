@@ -62,11 +62,18 @@ public class UserService {
                         h.getId(), java.time.LocalDate.of(2000, 1, 1), java.time.LocalDate.now()))
                 .sum();
         return new ProfileDto(user.getId(), user.getUsername(), user.getEmail(),
-                user.getEmailNotificationsEnabled(), user.getCreatedAt(), habitCount, totalCompletions);
+                user.getEmailNotificationsEnabled(), user.getNotifyAtMidnight(), user.getNotifyHourBefore(),
+                user.getCreatedAt(), habitCount, totalCompletions);
     }
 
     public void updateEmailNotifications(User user, Boolean enabled) {
         user.setEmailNotificationsEnabled(enabled);
+        userRepository.save(user);
+    }
+
+    public void updatePushNotifications(User user, Boolean notifyAtMidnight, Boolean notifyHourBefore) {
+        if (notifyAtMidnight != null) user.setNotifyAtMidnight(notifyAtMidnight);
+        if (notifyHourBefore != null) user.setNotifyHourBefore(notifyHourBefore);
         userRepository.save(user);
     }
 

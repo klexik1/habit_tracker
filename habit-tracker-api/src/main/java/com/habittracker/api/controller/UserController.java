@@ -42,6 +42,15 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
+    @PutMapping("/me/push-notifications")
+    public ResponseEntity<Void> updatePushNotifications(
+            @RequestBody Map<String, Boolean> body,
+            Authentication auth) {
+        User user = userService.findByUsername(auth.getName());
+        userService.updatePushNotifications(user, body.get("notifyAtMidnight"), body.get("notifyHourBefore"));
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/me/reset")
     public ResponseEntity<Void> resetProfile(
             @RequestBody Map<String, String> body,

@@ -45,6 +45,28 @@ public class EmailService {
         }
     }
 
+    @Async
+    public void sendHourBeforeReminder(String to, String habitName, String habitDescription) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject("⏳ Через час: " + habitName);
+
+            String htmlContent = buildHourBeforeEmailHtml(habitName, habitDescription);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            log.info("✅ Hour-before email отправлен на {}: привычка '{}'", to, habitName);
+        } catch (MessagingException e) {
+            log.error("❌ Ошибка создания hour-before email для {}: {}", to, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("❌ Неожиданная ошибка при отправке hour-before email на {}: {}", to, e.getMessage(), e);
+        }
+    }
+
     private String buildEmailHtml(String habitName, String habitDescription) {
         String template = """
             <!DOCTYPE html>
@@ -72,6 +94,50 @@ public class EmailService {
                         <p class="habit-name"><strong>{{HABIT_NAME}}</strong></p>
                         <p class="habit-description">{{HABIT_DESC}}</p>
                         <p>Не забудьте отметить выполнение этой привычки сегодня!</p>
+                        <p style="text-align: center; margin-top: 25px;">
+                            <a href="http://localhost:8080" class="button">Отметить выполнение</a>
+                        </p>
+                        <div class="footer">
+                            <p>Это письмо отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
+                            <p>© 2026 Habit Tracker</p>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """;
+        return template
+            .replace("{{HABIT_NAME}}", escapeHtml(habitName))
+            .replace("{{HABIT_DESC}}", escapeHtml(habitDescription != null ? habitDescription : "Без описания"));
+    }
+
+    private String buildHourBeforeEmailHtml(String habitName, String habitDescription) {
+        String template = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #f39c12 0%%, #e74c3c 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .header h1 { margin: 0; font-size: 24px; }
+                    .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .habit-name { font-size: 20px; color: #e74c3c; margin-bottom: 10px; }
+                    .habit-description { color: #666; margin-bottom: 20px; }
+                    .button { display: inline-block; background: #e74c3c; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+                    .footer { text-align: center; margin-top: 20px; color: #999; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>⏳ Скоро время привычки</h1>
+                    </div>
+                    <div class="content">
+                        <p class="habit-name"><strong>{{HABIT_NAME}}</strong></p>
+                        <p class="habit-description">{{HABIT_DESC}}</p>
+                        <p>Остался всего час! Не забудьте подготовиться.</p>
                         <p style="text-align: center; margin-top: 25px;">
                             <a href="http://localhost:8080" class="button">Отметить выполнение</a>
                         </p>

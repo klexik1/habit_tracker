@@ -148,7 +148,83 @@ public class EmailReminderService {
             }
             return false;
         }
-        
+
         return true;
+    }
+
+    /**
+     * Запускается каждую минуту для отправки email-напоминаний за час до привычки
+     */
+    @Scheduled(cron = "0 * * * * *")
+    @Transactional(readOnly = true)
+    public void sendHourBeforeReminders() {
+        java.time.LocalTime now = java.time.LocalTime.now();
+        int nowMinutes = now.getHour() * 60 + now.getMinute();
+
+        List<Habit> allHabits = habitRepository.findAllWithUsers();
+        int sentCount = 0;
+
+        for (Habit habit : allHabits) {
+            try {
+                User user = habit.getUser();
+                if (user == null || !Boolean.TRUE.equals(user.getEmailNotificationsEnabled())) {
+                    continue;
+                }
+                if (!Boolean.TRUE.equals(habit.getNotificationsEnabled())) {
+                    continue;
+                }
+                if (!isReminderDay(habit)) {
+                    continue;
+                }
+
+                Integer targetMinutes = getReminderTimeMinutes(habit);
+                if (targetMinutes == null) {
+                    continue;
+                }
+
+                int diff = targetMinutes - nowMinutes;
+                if (diff < 0) {
+                    diff += 24 * 60;
+                }
+
+                if (diff == 60) {
+                    String userEmail = user.getEmail();
+                    if (userEmail != null && !userEmail.isBlank()) {
+                        emailService.sendHourBeforeReminder(userEmail, habit.getName(), habit.getDescription());
+                        log.info("✅ Отправлено hour-before напоминание для '{}' на {}", habit.getName(), userEmail);
+                        sentCount++;
+                    }
+                }
+            } catch (Exception e) {
+                log.error("❌ Ошибка hour-before email для привычки {}: {}", habit.getId(), e.getMessage());
+            }
+        }
+
+        if (sentCount > 0) {
+            log.info("📧 Hour-before рассылка: отправлено {}", sentCount);
+        }
+    }
+
+    private Integer getReminderTimeMinutes(Habit habit) {
+        String frequency = habit.getFrequency() != null ? habit.getFrequency().name() : "DAILY";
+        String timeStr = null;
+
+        if ("DAILY".equals(frequency) || "INTERVAL".equals(frequency)) {
+            timeStr = habit.getReminderTime();
+        } else if ("WEEKLY".equals(frequency) || "MONTHLY".equals(frequency)) {
+            timeStr = habit.getReminderHour();
+        }
+
+        if (timeStr == null || timeStr.isBlank()) {
+            return null;
+        }
+        try {
+            String[] parts = timeStr.split(":");
+            int h = Integer.parseInt(parts[0]);
+            int m = Integer.parseInt(parts[1]);
+            return h * 60 + m;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
