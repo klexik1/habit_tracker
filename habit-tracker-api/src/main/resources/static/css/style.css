@@ -230,6 +230,114 @@ section h2 {
     min-height: 60px;
 }
 
+/* Пикер дня недели (ближайшие 7 дней) */
+.week-picker {
+    margin-top: 8px;
+}
+
+.week-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.week-day-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 4px;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.week-day-btn .day-num {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.week-day-btn .day-name {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 2px;
+}
+
+.week-day-btn:hover {
+    border-color: #667eea;
+}
+
+.week-day-btn:hover .day-num,
+.week-day-btn:hover .day-name {
+    color: #667eea;
+}
+
+.week-day-btn.selected {
+    background: #667eea;
+    border-color: #667eea;
+}
+
+.week-day-btn.selected .day-num,
+.week-day-btn.selected .day-name {
+    color: white;
+}
+
+/* Пикер дня месяца */
+.month-picker {
+    margin-top: 8px;
+}
+
+.month-calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+}
+
+.month-calendar .cal-header {
+    font-size: 0.75rem;
+    color: #999;
+    padding: 4px;
+    font-weight: 500;
+}
+
+.month-calendar .cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid transparent;
+    background: #f8f9fa;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #333;
+    transition: all 0.2s;
+}
+
+.month-calendar .cal-day:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.month-calendar .cal-day.selected {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+    font-weight: bold;
+}
+
+.month-calendar .cal-day.empty {
+    background: transparent;
+    cursor: default;
+}
+
+.month-calendar .cal-day.today {
+    border-color: #f39c12;
+}
+
 /* Чекбокс уведомлений — единый стиль для создания и редактирования */
 .form-group-notify {
     grid-column: 1 / -1;
@@ -802,6 +910,11 @@ section h2 {
     background: #eef0ff;
 }
 
+.filter-toggle.upcoming-toggle:has(input:checked) {
+    border-color: #f39c12;
+    background: #fff8e1;
+}
+
 /* Кнопка редактирования */
 .habit-card .actions button.edit {
     background: #f39c12;
@@ -953,6 +1066,40 @@ section h2 {
 
 .btn-cancel:hover {
     background: #ddd;
+}
+
+.reset-row {
+    margin-bottom: 10px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+
+.btn-reset {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #e74c3c;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    background: #e74c3c;
+    color: white;
+    transition: all 0.2s;
+}
+
+.btn-reset:hover {
+    background: #c0392b;
+    border-color: #c0392b;
+}
+
+.reminder-hour-input {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 @media (max-width: 600px) {

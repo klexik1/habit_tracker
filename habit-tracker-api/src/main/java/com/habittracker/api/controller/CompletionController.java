@@ -42,6 +42,15 @@ public class CompletionController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/habit/{habitId}")
+    public ResponseEntity<Void> resetCompletions(
+            @PathVariable Long habitId,
+            Authentication auth) {
+        User user = userService.findByUsername(auth.getName());
+        completionService.resetAllCompletions(habitId, user);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/habit/{habitId}")
     public ResponseEntity<List<CompletionDto>> getCompletions(
             @PathVariable Long habitId,

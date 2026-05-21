@@ -5,7 +5,6 @@ import com.habittracker.core.entity.Frequency;
 import com.habittracker.core.entity.HabitType;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 public record HabitDto(
     Long id,
@@ -15,7 +14,9 @@ public record HabitDto(
     Frequency frequency,
     HabitType habitType,
     Integer targetCount,
-    LocalTime reminderTime,
+    String reminderTime,
+    String reminderHour,
+    Integer intervalHours,
     Boolean notificationsEnabled,
     LocalDateTime createdAt,
     Long totalCompletions,

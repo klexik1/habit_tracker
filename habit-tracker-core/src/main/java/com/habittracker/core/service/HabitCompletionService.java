@@ -89,6 +89,16 @@ public class HabitCompletionService {
         completionRepository.delete(completion);
     }
 
+    public void resetAllCompletions(Long habitId, User user) {
+        Habit habit = habitRepository.findById(habitId)
+                .orElseThrow(() -> new NotFoundException("Habit not found"));
+        if (!habit.getUser().getId().equals(user.getId())) {
+            throw new NotFoundException("Habit not found");
+        }
+        List<HabitCompletion> completions = completionRepository.findByHabitId(habitId);
+        completionRepository.deleteAll(completions);
+    }
+
     public List<CompletionDto> getCompletions(Long habitId, User user, LocalDate start, LocalDate end) {
         Habit habit = habitRepository.findById(habitId)
                 .orElseThrow(() -> new NotFoundException("Habit not found"));

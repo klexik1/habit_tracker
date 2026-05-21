@@ -2,7 +2,6 @@ package com.habittracker.core.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import com.habittracker.core.entity.HabitType;
 
 @Entity
@@ -37,7 +36,13 @@ public class Habit {
     private User user;
 
     @Column(name = "reminder_time")
-    private LocalTime reminderTime;
+    private String reminderTime;
+
+    @Column(name = "reminder_hour", length = 5)
+    private String reminderHour;
+
+    @Column(name = "interval_hours")
+    private Integer intervalHours;
 
     @Column(name = "notifications_enabled")
     private Boolean notificationsEnabled = false;
@@ -74,8 +79,14 @@ public class Habit {
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
 
-    public LocalTime getReminderTime() { return reminderTime; }
-    public void setReminderTime(LocalTime reminderTime) { this.reminderTime = reminderTime; }
+    public String getReminderTime() { return reminderTime; }
+    public void setReminderTime(String reminderTime) { this.reminderTime = reminderTime; }
+
+    public String getReminderHour() { return reminderHour; }
+    public void setReminderHour(String reminderHour) { this.reminderHour = reminderHour; }
+
+    public Integer getIntervalHours() { return intervalHours; }
+    public void setIntervalHours(Integer intervalHours) { this.intervalHours = intervalHours; }
 
     public Boolean getNotificationsEnabled() { return notificationsEnabled; }
     public void setNotificationsEnabled(Boolean notificationsEnabled) { this.notificationsEnabled = notificationsEnabled; }

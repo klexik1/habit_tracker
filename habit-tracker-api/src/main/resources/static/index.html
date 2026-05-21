@@ -81,6 +81,7 @@
                             <option value="DAILY">📅 Каждый день</option>
                             <option value="WEEKLY">📆 Каждую неделю</option>
                             <option value="MONTHLY">📅 Каждый месяц</option>
+                            <option value="INTERVAL">⏱️ Каждый период времени</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -90,9 +91,22 @@
                             <option value="MULTIPLE">🔁 Многоразовая — можно отмечать несколько раз</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="habit-reminder">⏰ Планируемое время выполнения</label>
+                    <div class="form-group" id="interval-group" style="display:none;">
+                        <label for="habit-interval">⏱️ Повторять каждые (часов)</label>
+                        <input type="number" id="habit-interval" min="1" max="168" value="4" placeholder="Например: 4">
+                    </div>
+                    <div class="form-group" id="reminder-container">
+                        <label id="reminder-label">⏰ Планируемое время выполнения</label>
                         <input type="time" id="habit-reminder" title="Планируемое время выполнения">
+                        <div id="weekly-picker" class="week-picker" style="display:none;">
+                            <div class="week-days" id="week-days-container"></div>
+                            <input type="time" id="habit-reminder-hour" class="reminder-hour-input" placeholder="Время выполнения">
+                        </div>
+                        <div id="monthly-picker" class="month-picker" style="display:none;">
+                            <div class="month-calendar" id="month-calendar-grid"></div>
+                            <input type="time" id="habit-reminder-hour-monthly" class="reminder-hour-input" placeholder="Время выполнения">
+                        </div>
+                        <input type="hidden" id="habit-reminder-value">
                     </div>
                     <button type="submit">Создать привычку</button>
                 </form>
@@ -107,6 +121,10 @@
                 <label class="filter-toggle">
                     <input type="checkbox" id="filter-multiple" checked onchange="loadHabits()">
                     <span>🔁 Многоразовые</span>
+                </label>
+                <label class="filter-toggle upcoming-toggle" id="upcoming-toggle">
+                    <input type="checkbox" id="filter-upcoming" onchange="loadHabits()">
+                    <span>⏰ Ближайшие</span>
                 </label>
             </div>
             <div id="habits-list"></div>
@@ -159,19 +177,36 @@
                             <option value="DAILY">📅 Каждый день</option>
                             <option value="WEEKLY">📆 Каждую неделю</option>
                             <option value="MONTHLY">📅 Каждый месяц</option>
+                            <option value="INTERVAL">⏱️ Каждый период времени</option>
                         </select>
                     </div>
                     <div class="form-group" id="edit-target-group" style="display:none;">
                         <label>Цель на день</label>
                         <input type="number" id="edit-habit-target" min="0" value="1">
                     </div>
-                    <div class="form-group">
-                        <label>⏰ Планируемое время выполнения</label>
+                    <div class="form-group" id="edit-interval-group" style="display:none;">
+                        <label>⏱️ Повторять каждые (часов)</label>
+                        <input type="number" id="edit-habit-interval" min="1" max="168" value="4">
+                    </div>
+                    <div class="form-group" id="edit-reminder-container">
+                        <label id="edit-reminder-label">⏰ Планируемое время выполнения</label>
                         <input type="time" id="edit-habit-reminder">
+                        <div id="edit-weekly-picker" class="week-picker" style="display:none;">
+                            <div class="week-days" id="edit-week-days-container"></div>
+                            <input type="time" id="edit-habit-reminder-hour" class="reminder-hour-input" placeholder="Время выполнения">
+                        </div>
+                        <div id="edit-monthly-picker" class="month-picker" style="display:none;">
+                            <div class="month-calendar" id="edit-month-calendar-grid"></div>
+                            <input type="time" id="edit-habit-reminder-hour-monthly" class="reminder-hour-input" placeholder="Время выполнения">
+                        </div>
+                        <input type="hidden" id="edit-habit-reminder-value">
                     </div>
                     <div class="form-group-notify">
                         <input type="checkbox" id="edit-habit-notifications">
                         <label for="edit-habit-notifications">🔔 Уведомлять в планируемое время</label>
+                    </div>
+                    <div class="modal-actions reset-row">
+                        <button type="button" class="btn-reset" onclick="resetHabitStats()">🗑️ Сбросить статистику</button>
                     </div>
                     <div class="modal-actions">
                         <button type="submit" class="btn-save">💾 Сохранить</button>

@@ -16,11 +16,18 @@ CREATE TABLE IF NOT EXISTS habits (
     frequency VARCHAR(10) NOT NULL DEFAULT 'DAILY',
     target_count INTEGER DEFAULT 1,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    reminder_time TIME,
+    reminder_time VARCHAR(10),
+    interval_hours INTEGER,
     notifications_enabled BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT habits_frequency_check CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY'))
+    CONSTRAINT habits_frequency_check CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'INTERVAL'))
 );
+
+-- Обновить constraint и добавить колонку если таблица уже существовала
+ALTER TABLE habits DROP CONSTRAINT IF EXISTS habits_frequency_check;
+ALTER TABLE habits ADD CONSTRAINT habits_frequency_check CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'INTERVAL'));
+ALTER TABLE habits ADD COLUMN IF NOT EXISTS interval_hours INTEGER;
+ALTER TABLE habits ADD COLUMN IF NOT EXISTS reminder_hour VARCHAR(5);
 
 -- Habit completions table
 CREATE TABLE IF NOT EXISTS habit_completions (
@@ -32,5 +39,5 @@ CREATE TABLE IF NOT EXISTS habit_completions (
     note TEXT
 );
 
-CREATE INDEX idx_habit_completions_date ON habit_completions(completed_date);
-CREATE INDEX idx_habits_user ON habits(user_id);
+CREATE INDEX IF NOT EXISTS idx_habit_completions_date ON habit_completions(completed_date);
+CREATE INDEX IF NOT EXISTS idx_habits_user ON habits(user_id);

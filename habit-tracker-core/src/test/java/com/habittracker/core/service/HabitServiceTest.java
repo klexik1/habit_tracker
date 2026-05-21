@@ -13,8 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalTime;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -42,8 +40,12 @@ class HabitServiceTest {
                 "Daily morning jog",
                 Category.SPORT,
                 Frequency.DAILY,
+                null,
                 1,
-                LocalTime.of(7, 0)
+                "07:00",
+                null,
+                null,
+                false
         );
 
         Habit savedHabit = new Habit();
@@ -54,6 +56,7 @@ class HabitServiceTest {
         savedHabit.setFrequency(request.frequency());
         savedHabit.setTargetCount(request.targetCount());
         savedHabit.setReminderTime(request.reminderTime());
+        savedHabit.setIntervalHours(request.intervalHours());
         savedHabit.setUser(user);
 
         when(habitRepository.save(any(Habit.class))).thenReturn(savedHabit);

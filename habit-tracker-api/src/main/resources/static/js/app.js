@@ -61,6 +61,11 @@ function getMonthKey(dateStr) {
 function calculateStreak(habit, completions) {
     if (!completions || completions.length === 0) return 0;
     const frequency = habit.frequency || 'DAILY';
+    if (frequency === 'INTERVAL') {
+        // Для интервальных привычек серия = количество выполнений подряд
+        // (все выполнения считаются, так как каждое сбрасывает таймер)
+        return completions.length;
+    }
     const periods = new Set();
     for (const c of completions) {
         if (!c.completedDate) continue;
@@ -122,11 +127,239 @@ document.addEventListener('DOMContentLoaded', () => {
     startClock();
     initSkipDayButton();
     initPushNotifications();
+    initReminderPicker();
     if (token) {
         showNav();
         loadHabits();
     }
 });
+
+// ============ ПИКЕР ПЛАНИРОВАНИЯ (день/время) ============
+function initReminderPicker() {
+    const freqSelect = document.getElementById('habit-frequency');
+    if (!freqSelect) return;
+    freqSelect.addEventListener('change', updateReminderPicker);
+    updateReminderPicker();
+}
+
+function updateReminderPicker() {
+    const freq = document.getElementById('habit-frequency').value;
+    const timeInput = document.getElementById('habit-reminder');
+    const weeklyPicker = document.getElementById('weekly-picker');
+    const monthlyPicker = document.getElementById('monthly-picker');
+    const intervalGroup = document.getElementById('interval-group');
+    const label = document.getElementById('reminder-label');
+    const hidden = document.getElementById('habit-reminder-value');
+
+    timeInput.style.display = 'none';
+    weeklyPicker.style.display = 'none';
+    monthlyPicker.style.display = 'none';
+    intervalGroup.style.display = 'none';
+
+    if (freq === 'DAILY') {
+        label.textContent = '⏰ Планируемое время выполнения';
+        timeInput.style.display = 'block';
+    } else if (freq === 'WEEKLY') {
+        label.textContent = '📆 Выберите день и время';
+        weeklyPicker.style.display = 'block';
+        renderWeekPicker();
+    } else if (freq === 'MONTHLY') {
+        label.textContent = '📅 Выберите день и время';
+        monthlyPicker.style.display = 'block';
+        renderMonthCalendar();
+    } else if (freq === 'INTERVAL') {
+        intervalGroup.style.display = 'flex';
+        intervalGroup.style.flexDirection = 'column';
+        label.textContent = '⏱️ Начальное время первого выполнения';
+        timeInput.style.display = 'block';
+    }
+}
+
+function renderWeekPicker() {
+    const container = document.getElementById('week-days-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    const now = getTestDate();
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() + i);
+        const dayNum = d.getDate();
+        const dayName = dayNames[d.getDay()];
+        const dow = d.getDay() === 0 ? 7 : d.getDay(); // 1=Пн, 7=Вс
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'week-day-btn';
+        btn.dataset.day = dow;
+        btn.innerHTML = `<span class="day-num">${dayNum}</span><span class="day-name">${dayName}</span>`;
+        btn.onclick = () => selectWeekDay(btn);
+        container.appendChild(btn);
+    }
+}
+
+function selectWeekDay(btn) {
+    const container = document.getElementById('week-days-container');
+    container.querySelectorAll('.week-day-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('habit-reminder-value').value = btn.dataset.day;
+}
+
+function renderMonthCalendar() {
+    const grid = document.getElementById('month-calendar-grid');
+    if (!grid || grid.children.length > 0) return; // уже отрисован
+
+    const headers = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    headers.forEach(h => {
+        const el = document.createElement('div');
+        el.className = 'cal-header';
+        el.textContent = h;
+        grid.appendChild(el);
+    });
+
+    const now = getTestDate();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay(); // 0=Вс,1=Пн
+    const offset = firstDay === 0 ? 6 : firstDay - 1;
+
+    for (let i = 0; i < offset; i++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day empty';
+        grid.appendChild(el);
+    }
+
+    const today = now.getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day' + (d === today ? ' today' : '');
+        el.textContent = d;
+        el.dataset.day = d;
+        el.onclick = () => selectMonthDay(el);
+        grid.appendChild(el);
+    }
+}
+
+function selectMonthDay(el) {
+    const grid = document.getElementById('month-calendar-grid');
+    grid.querySelectorAll('.cal-day').forEach(d => d.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('habit-reminder-value').value = el.dataset.day;
+}
+
+function resetReminderPicker() {
+    const container = document.getElementById('week-days-container');
+    if (container) container.innerHTML = '';
+    const grid = document.getElementById('month-calendar-grid');
+    if (grid) grid.innerHTML = '';
+    document.getElementById('habit-reminder-value').value = '';
+    updateReminderPicker();
+}
+
+// ============ ПИКЕР ДЛЯ РЕДАКТИРОВАНИЯ ============
+function updateEditReminderPicker() {
+    const freq = document.getElementById('edit-habit-frequency').value;
+    const timeInput = document.getElementById('edit-habit-reminder');
+    const weeklyPicker = document.getElementById('edit-weekly-picker');
+    const monthlyPicker = document.getElementById('edit-monthly-picker');
+    const intervalGroup = document.getElementById('edit-interval-group');
+    const label = document.getElementById('edit-reminder-label');
+
+    timeInput.style.display = 'none';
+    weeklyPicker.style.display = 'none';
+    monthlyPicker.style.display = 'none';
+    intervalGroup.style.display = 'none';
+
+    if (freq === 'DAILY') {
+        label.textContent = '⏰ Планируемое время выполнения';
+        timeInput.style.display = 'block';
+    } else if (freq === 'WEEKLY') {
+        label.textContent = '📆 Выберите день и время';
+        weeklyPicker.style.display = 'block';
+        renderEditWeekPicker();
+    } else if (freq === 'MONTHLY') {
+        label.textContent = '📅 Выберите день и время';
+        monthlyPicker.style.display = 'block';
+        renderEditMonthCalendar();
+    } else if (freq === 'INTERVAL') {
+        intervalGroup.style.display = 'flex';
+        intervalGroup.style.flexDirection = 'column';
+        label.textContent = '⏱️ Начальное время первого выполнения';
+        timeInput.style.display = 'block';
+    }
+}
+
+function renderEditWeekPicker() {
+    const container = document.getElementById('edit-week-days-container');
+    if (!container) return;
+    container.innerHTML = '';
+    const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    const now = getTestDate();
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() + i);
+        const dayNum = d.getDate();
+        const dayName = dayNames[d.getDay()];
+        const dow = d.getDay() === 0 ? 7 : d.getDay();
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'week-day-btn';
+        btn.dataset.day = dow;
+        btn.innerHTML = `<span class="day-num">${dayNum}</span><span class="day-name">${dayName}</span>`;
+        btn.onclick = () => selectEditWeekDay(btn);
+        container.appendChild(btn);
+    }
+}
+
+function selectEditWeekDay(btn) {
+    const container = document.getElementById('edit-week-days-container');
+    container.querySelectorAll('.week-day-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('edit-habit-reminder-value').value = btn.dataset.day;
+}
+
+function renderEditMonthCalendar() {
+    const grid = document.getElementById('edit-month-calendar-grid');
+    if (!grid || grid.children.length > 0) return;
+
+    const headers = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    headers.forEach(h => {
+        const el = document.createElement('div');
+        el.className = 'cal-header';
+        el.textContent = h;
+        grid.appendChild(el);
+    });
+
+    const now = getTestDate();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    const offset = firstDay === 0 ? 6 : firstDay - 1;
+
+    for (let i = 0; i < offset; i++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day empty';
+        grid.appendChild(el);
+    }
+
+    const today = now.getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day' + (d === today ? ' today' : '');
+        el.textContent = d;
+        el.dataset.day = d;
+        el.onclick = () => selectEditMonthDay(el);
+        grid.appendChild(el);
+    }
+}
+
+function selectEditMonthDay(el) {
+    const grid = document.getElementById('edit-month-calendar-grid');
+    grid.querySelectorAll('.cal-day').forEach(d => d.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('edit-habit-reminder-value').value = el.dataset.day;
+}
 
 // ============ ЧАСЫ И КНОПКА ПРОПУСКА ДНЯ ============
 function startClock() {
@@ -176,7 +409,6 @@ function initPushNotifications() {
 async function checkReminders() {
     if (!token || Notification.permission !== 'granted') return;
     const now = getTestDate();
-    const currentTime = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
     const currentHour = String(now.getHours()).padStart(2, '0');
     const currentMin = String(now.getMinutes()).padStart(2, '0');
     const currentHm = `${currentHour}:${currentMin}`;
@@ -190,9 +422,27 @@ async function checkReminders() {
 
         for (const habit of habits) {
             if (!habit.notificationsEnabled || !habit.reminderTime) continue;
-            // Сравниваем только часы:минуты
-            const rt = habit.reminderTime.substring(0, 5);
-            if (rt === currentHm) {
+            const freq = habit.frequency || 'DAILY';
+            const val = habit.reminderTime;
+            let shouldNotify = false;
+
+            if (freq === 'DAILY' || freq === 'INTERVAL') {
+                // Сравниваем часы:минуты
+                shouldNotify = val === currentHm;
+            } else if (freq === 'WEEKLY') {
+                // Сравниваем день недели (1=Пн, 7=Вс)
+                const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
+                shouldNotify = parseInt(val) === dayOfWeek;
+            } else if (freq === 'MONTHLY') {
+                // Сравниваем день месяца; если выбранный день > дней в месяце — уведомляем в последний день
+                const day = parseInt(val) || 1;
+                const year = now.getFullYear();
+                const month = now.getMonth();
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                shouldNotify = now.getDate() === day || (day > lastDay && now.getDate() === lastDay);
+            }
+
+            if (shouldNotify) {
                 new Notification('⏰ Напоминание о привычке', {
                     body: `Пора выполнить: «${habit.name}»`,
                     icon: '📊',
@@ -349,14 +599,34 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
 document.getElementById('habit-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const freq = document.getElementById('habit-frequency').value;
+    let reminderValue = null;
+    let reminderHourValue = null;
+    if (freq === 'DAILY' || freq === 'INTERVAL') {
+        reminderValue = document.getElementById('habit-reminder').value || null;
+    } else {
+        reminderValue = document.getElementById('habit-reminder-value').value || null;
+        if (freq === 'WEEKLY') {
+            reminderHourValue = document.getElementById('habit-reminder-hour').value || null;
+        } else if (freq === 'MONTHLY') {
+            reminderHourValue = document.getElementById('habit-reminder-hour-monthly').value || null;
+        }
+    }
+
+    const intervalHours = freq === 'INTERVAL'
+        ? parseInt(document.getElementById('habit-interval').value) || 4
+        : null;
+
     const habit = {
         name: document.getElementById('habit-name').value,
         description: document.getElementById('habit-description').value,
         category: document.getElementById('habit-category').value,
-        frequency: document.getElementById('habit-frequency').value,
+        frequency: freq,
         habitType: document.getElementById('habit-type').value,
         targetCount: 1,
-        reminderTime: document.getElementById('habit-reminder').value || null,
+        reminderTime: reminderValue,
+        reminderHour: reminderHourValue,
+        intervalHours: intervalHours,
         notificationsEnabled: false
     };
 
@@ -375,6 +645,7 @@ document.getElementById('habit-form').addEventListener('submit', async (e) => {
         const newHabit = await response.json();
         showNotification('Привычка создана!', 'success');
         document.getElementById('habit-form').reset();
+        resetReminderPicker();
         await addHabitToList(newHabit);
     } catch (error) {
         showNotification('Ошибка создания привычки', 'error');
@@ -404,7 +675,7 @@ async function addHabitToList(habit) {
     const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} раз` : ' раз';
     const notifChecked = habit.notificationsEnabled ? 'checked' : '';
     const notifActive = habit.notificationsEnabled ? 'active' : '';
-    const timeLabel = habit.reminderTime ? `⏰ ${habit.reminderTime}` : 'Без времени';
+    const reminderLabel = formatReminderLabel(habit);
 
     let extraHtml = '';
     if (isMultiple) {
@@ -431,7 +702,7 @@ async function addHabitToList(habit) {
             ${!isMultiple ? '<span class="status-badge">⏳ Не выполнено</span>' : ''}
         </h4>
         <p>${habit.description || 'Нет описания'}</p>
-        <p>📅 ${getFrequencyName(habit.frequency)} · ${timeLabel}</p>
+        <p>📅 ${getFrequencyName(habit.frequency)} · ${reminderLabel}</p>
         ${statsHtml}
         ${extraHtml}
         <div class="actions">
@@ -472,6 +743,7 @@ async function loadHabits(preserveScroll = false) {
 
     const filterSingle = document.getElementById('filter-single').checked;
     const filterMultiple = document.getElementById('filter-multiple').checked;
+    const filterUpcoming = document.getElementById('filter-upcoming').checked;
 
     try {
         const response = await fetch(`${API_URL}/habits`, {
@@ -507,8 +779,15 @@ async function loadHabits(preserveScroll = false) {
             return false;
         });
 
-        // Если оба фильтра включены — сортируем по частоте (убывание)
-        if (filterSingle && filterMultiple) {
+        // Фильтр "Ближайшие" — только невыполненные, отсортированные по времени
+        if (filterUpcoming) {
+            habits = habits.filter(h => {
+                if (h.habitType === 'SINGLE') return !h.completedToday;
+                if (h.habitType === 'MULTIPLE') return (h.todayCompletions || 0) < (h.targetCount || 1);
+                return true;
+            });
+            habits.sort((a, b) => getUpcomingScore(a) - getUpcomingScore(b));
+        } else if (filterSingle && filterMultiple) {
             habits.sort((a, b) => (b.totalCompletions || 0) - (a.totalCompletions || 0));
         }
 
@@ -529,7 +808,7 @@ async function loadHabits(preserveScroll = false) {
             const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} раз` : ' раз';
             const notifChecked = habit.notificationsEnabled ? 'checked' : '';
             const notifActive = habit.notificationsEnabled ? 'active' : '';
-            const timeLabel = habit.reminderTime ? `⏰ ${habit.reminderTime}` : 'Без времени';
+            const reminderLabel = formatReminderLabel(habit);
 
             let extraHtml = '';
             if (isMultiple) {
@@ -564,7 +843,7 @@ async function loadHabits(preserveScroll = false) {
                     <span class="status-badge" id="status-${habit.id}">⏳ Не выполнено</span>
                 </h4>
                 <p>${habit.description || 'Нет описания'}</p>
-                <p>📅 ${getFrequencyName(habit.frequency)} · ${timeLabel}</p>
+                <p>📅 ${getFrequencyName(habit.frequency)} · ${reminderLabel}</p>
                 ${statsHtml}
                 ${extraHtml}
                 <div class="actions">
@@ -776,6 +1055,13 @@ function toggleCompletions(habitId) {
 }
 
 // Модалка редактирования
+// Инициализация обработчика частоты в модалке
+function initEditFrequencyHandler() {
+    const sel = document.getElementById('edit-habit-frequency');
+    if (sel) sel.addEventListener('change', updateEditReminderPicker);
+}
+document.addEventListener('DOMContentLoaded', initEditFrequencyHandler);
+
 async function openEditModal(habitId) {
     try {
         const response = await fetch(`${API_URL}/habits/${habitId}`, {
@@ -790,7 +1076,31 @@ async function openEditModal(habitId) {
         document.getElementById('edit-habit-category').value = habit.category || 'OTHER';
         document.getElementById('edit-habit-frequency').value = habit.frequency || 'DAILY';
         document.getElementById('edit-habit-notifications').checked = !!habit.notificationsEnabled;
-        document.getElementById('edit-habit-reminder').value = habit.reminderTime || '';
+        document.getElementById('edit-habit-interval').value = habit.intervalHours || 4;
+
+        // Установка пикера в зависимости от частоты
+        updateEditReminderPicker();
+        const freq = habit.frequency || 'DAILY';
+        const val = habit.reminderTime || '';
+        const hourVal = habit.reminderHour || '';
+        if (freq === 'DAILY') {
+            document.getElementById('edit-habit-reminder').value = val;
+            document.getElementById('edit-habit-reminder-value').value = val;
+        } else if (freq === 'WEEKLY') {
+            const day = parseInt(val) || 1;
+            renderEditWeekPicker();
+            const btn = document.querySelector(`#edit-week-days-container .week-day-btn[data-day="${day}"]`);
+            if (btn) selectEditWeekDay(btn);
+            document.getElementById('edit-habit-reminder-value').value = String(day);
+            document.getElementById('edit-habit-reminder-hour').value = hourVal;
+        } else if (freq === 'MONTHLY') {
+            const day = parseInt(val) || 1;
+            renderEditMonthCalendar();
+            const cell = document.querySelector(`#edit-month-calendar-grid .cal-day[data-day="${day}"]`);
+            if (cell) selectEditMonthDay(cell);
+            document.getElementById('edit-habit-reminder-value').value = String(day);
+            document.getElementById('edit-habit-reminder-hour-monthly').value = hourVal;
+        }
 
         const targetGroup = document.getElementById('edit-target-group');
         if (habit.habitType === 'MULTIPLE') {
@@ -810,6 +1120,38 @@ async function openEditModal(habitId) {
 function closeEditModal() {
     document.getElementById('edit-modal').style.display = 'none';
     document.getElementById('edit-habit-form').reset();
+    // сброс пикеров редактирования
+    const editWeekly = document.getElementById('edit-week-days-container');
+    const editMonthly = document.getElementById('edit-month-calendar-grid');
+    if (editWeekly) editWeekly.innerHTML = '';
+    if (editMonthly) editMonthly.innerHTML = '';
+    document.getElementById('edit-habit-reminder-value').value = '';
+}
+
+async function resetHabitStats() {
+    const habitId = document.getElementById('edit-habit-id').value;
+    if (!habitId) return;
+
+    const firstConfirm = confirm('⚠️ Вы уверены, что хотите сбросить ВСЮ статистику для этой привычки?\n\nВсе выполнения будут безвозвратно удалены. Сама привычка останется.');
+    if (!firstConfirm) return;
+
+    const secondConfirm = confirm('🔴 ЭТО ДЕЙСТВИЕ НЕОБРАТИМО!\n\nУдалить все выполнения привычки?');
+    if (!secondConfirm) return;
+
+    try {
+        const response = await fetch(`${API_URL}/completions/habit/${habitId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Ошибка');
+
+        showNotification('📊 Статистика сброшена', 'success');
+        closeEditModal();
+        await refreshHabitCard(habitId);
+    } catch (error) {
+        showNotification('Ошибка сброса статистики', 'error');
+    }
 }
 
 async function saveHabitEdit(e) {
@@ -827,14 +1169,33 @@ async function saveHabitEdit(e) {
         if (!habitRes.ok) throw new Error('Ошибка');
         const habit = await habitRes.json();
 
+        const editFreq = document.getElementById('edit-habit-frequency').value;
+        let editReminder = null;
+        let editReminderHour = null;
+        if (editFreq === 'DAILY' || editFreq === 'INTERVAL') {
+            editReminder = document.getElementById('edit-habit-reminder').value || null;
+        } else {
+            editReminder = document.getElementById('edit-habit-reminder-value').value || null;
+            if (editFreq === 'WEEKLY') {
+                editReminderHour = document.getElementById('edit-habit-reminder-hour').value || null;
+            } else if (editFreq === 'MONTHLY') {
+                editReminderHour = document.getElementById('edit-habit-reminder-hour-monthly').value || null;
+            }
+        }
+        const editInterval = editFreq === 'INTERVAL'
+            ? parseInt(document.getElementById('edit-habit-interval').value) || 4
+            : null;
+
         const updated = {
             name,
             description,
             category: document.getElementById('edit-habit-category').value,
-            frequency: document.getElementById('edit-habit-frequency').value,
+            frequency: editFreq,
             habitType: habit.habitType,
             targetCount: habit.habitType === 'MULTIPLE' ? targetCount : (habit.targetCount || 1),
-            reminderTime: document.getElementById('edit-habit-reminder').value || null,
+            reminderTime: editReminder,
+            reminderHour: editReminderHour,
+            intervalHours: editInterval,
             notificationsEnabled: document.getElementById('edit-habit-notifications').checked
         };
 
@@ -896,7 +1257,7 @@ async function refreshHabitCard(habitId) {
         const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} раз` : ' раз';
         const notifChecked = habit.notificationsEnabled ? 'checked' : '';
         const notifActive = habit.notificationsEnabled ? 'active' : '';
-        const timeLabel = habit.reminderTime ? `⏰ ${habit.reminderTime}` : 'Без времени';
+        const reminderLabel = formatReminderLabel(habit);
 
         if (isMultiple) {
             extraHtml = `
@@ -932,7 +1293,7 @@ async function refreshHabitCard(habitId) {
                     ${!isMultiple && !completedToday ? '<span class="status-badge">⏳ Не выполнено</span>' : ''}
                 </h4>
                 <p>${habit.description || 'Нет описания'}</p>
-                <p>📅 ${getFrequencyName(habit.frequency)} · ${timeLabel}</p>
+                <p>📅 ${getFrequencyName(habit.frequency)} · ${reminderLabel}</p>
                 ${statsHtml}
                 ${extraHtml}
                 <div class="actions">
@@ -1092,7 +1453,8 @@ function getFrequencyName(freq) {
     const names = {
         'DAILY': 'Каждый день',
         'WEEKLY': 'Каждую неделю',
-        'MONTHLY': 'Каждый месяц'
+        'MONTHLY': 'Каждый месяц',
+        'INTERVAL': 'Каждый период'
     };
     return names[freq] || freq;
 }
@@ -1101,9 +1463,157 @@ function getStreakLabel(freq) {
     const names = {
         'DAILY': 'Дней подряд',
         'WEEKLY': 'Недель подряд',
-        'MONTHLY': 'Месяцев подряд'
+        'MONTHLY': 'Месяцев подряд',
+        'INTERVAL': 'Выполнений'
     };
     return names[freq] || 'Серия';
+}
+
+// Чем меньше score, тем ближе привычка по времени
+function getUpcomingScore(habit) {
+    const now = getTestDate();
+    const freq = habit.frequency || 'DAILY';
+    const val = habit.reminderTime || '';
+    const hour = habit.reminderHour || '00:00';
+    const [rh, rm] = hour.split(':').map(Number);
+    const reminderMinutes = (rh || 0) * 60 + (rm || 0);
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    if (freq === 'DAILY' || freq === 'INTERVAL') {
+        const [h, m] = val.split(':').map(Number);
+        const rMin = (h || 0) * 60 + (m || 0);
+        let diff = rMin - nowMinutes;
+        if (diff < 0) diff += 24 * 60;
+        return diff;
+    }
+    if (freq === 'WEEKLY') {
+        const day = parseInt(val) || 1;
+        const today = now.getDay() === 0 ? 7 : now.getDay();
+        let daysDiff = day - today;
+        if (daysDiff < 0) daysDiff += 7;
+        let totalMin = daysDiff * 24 * 60 + (reminderMinutes - nowMinutes);
+        if (totalMin < 0) totalMin += 24 * 60;
+        return totalMin;
+    }
+    if (freq === 'MONTHLY') {
+        const day = parseInt(val) || 1;
+        const today = now.getDate();
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const targetDay = Math.min(day, lastDay);
+        let daysDiff = targetDay - today;
+        if (daysDiff < 0) daysDiff += lastDay;
+        let totalMin = daysDiff * 24 * 60 + (reminderMinutes - nowMinutes);
+        if (totalMin < 0) totalMin += 24 * 60;
+        return totalMin;
+    }
+    return Infinity;
+}
+
+function formatReminderLabel(habit) {
+    const freq = habit.frequency || 'DAILY';
+    const val = habit.reminderTime || '';
+    const hour = habit.reminderHour || '';
+    const timeSuffix = hour ? ` в ${hour}` : '';
+
+    if (freq === 'DAILY') {
+        const timer = getTimeUntil(freq, val, null, null);
+        return val ? `⏰ ${val}${timer ? ` · ${timer}` : ''}` : 'Без времени';
+    }
+    if (freq === 'WEEKLY') {
+        const dayData = {
+            1: { name: 'понедельник', prefix: 'Каждый' },
+            2: { name: 'вторник', prefix: 'Каждый' },
+            3: { name: 'среду', prefix: 'Каждую' },
+            4: { name: 'четверг', prefix: 'Каждый' },
+            5: { name: 'пятницу', prefix: 'Каждую' },
+            6: { name: 'субботу', prefix: 'Каждую' },
+            7: { name: 'воскресенье', prefix: 'Каждое' }
+        };
+        const day = parseInt(val) || 1;
+        const data = dayData[day] || dayData[1];
+        const timer = getTimeUntil(freq, val, hour, null);
+        return `📅 ${data.prefix} ${data.name}${timeSuffix}${timer ? ` · ${timer}` : ''}`;
+    }
+    if (freq === 'MONTHLY') {
+        const day = parseInt(val) || 1;
+        const base = day >= 29 ? `📅 Каждый месяц (${day}-е или последний день)` : `📅 Каждое ${day}-е число`;
+        const timer = getTimeUntil(freq, val, hour, null);
+        return `${base}${timeSuffix}${timer ? ` · ${timer}` : ''}`;
+    }
+    if (freq === 'INTERVAL') {
+        const hours = habit.intervalHours || 4;
+        const start = val || '--:--';
+        const timer = getTimeUntil(freq, val, val, hours);
+        return `⏱️ Каждые ${hours} ч (с ${start})${timer ? ` · ${timer}` : ''}`;
+    }
+    return '';
+}
+
+function getTimeUntil(freq, val, hour, intervalHours) {
+    const now = getTestDate();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    if (freq === 'DAILY') {
+        if (!val) return '';
+        const [h, m] = val.split(':').map(Number);
+        const reminderMinutes = (h || 0) * 60 + (m || 0);
+        let diff = reminderMinutes - nowMinutes;
+        if (diff < 0) diff += 24 * 60;
+        const hrs = Math.floor(diff / 60);
+        const mins = diff % 60;
+        if (hrs > 0) return `через ${hrs}ч ${mins}м`;
+        return `через ${mins}м`;
+    }
+
+    if (freq === 'INTERVAL') {
+        const interval = (intervalHours || 4) * 60;
+        if (!hour) return '';
+        const [h, m] = hour.split(':').map(Number);
+        const startMinutes = (h || 0) * 60 + (m || 0);
+        const elapsed = nowMinutes - startMinutes;
+        let diff;
+        if (elapsed < 0) {
+            diff = -elapsed;
+        } else {
+            diff = interval - (elapsed % interval);
+        }
+        const hrs = Math.floor(diff / 60);
+        const mins = diff % 60;
+        if (hrs > 0) return `через ${hrs}ч ${mins}м`;
+        return `через ${mins}м`;
+    }
+
+    if (!hour) return '';
+    const [h, m] = hour.split(':').map(Number);
+    const reminderMinutes = (h || 0) * 60 + (m || 0);
+    let days = 0;
+
+    if (freq === 'WEEKLY') {
+        const day = parseInt(val) || 1;
+        const today = now.getDay() === 0 ? 7 : now.getDay();
+        days = day - today;
+        if (days < 0) days += 7;
+    } else if (freq === 'MONTHLY') {
+        const day = parseInt(val) || 1;
+        const today = now.getDate();
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const targetDay = Math.min(day, lastDay);
+        days = targetDay - today;
+        if (days < 0) days += lastDay;
+    } else {
+        return '';
+    }
+
+    let totalMinutes = days * 24 * 60 + (reminderMinutes - nowMinutes);
+    if (totalMinutes < 0) totalMinutes += 24 * 60;
+
+    const d = Math.floor(totalMinutes / (24 * 60));
+    const hrs = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const mins = totalMinutes % 60;
+
+    if (d > 0) return `через ${d}д ${hrs}ч`;
+    if (hrs > 0) return `через ${hrs}ч ${mins}м`;
+    return `через ${mins}м`;
 }
 
 // ==================== АНАЛИТИКА ====================
@@ -1446,7 +1956,8 @@ async function loadHabitAnalytics() {
                     backgroundColor: mainBg,
                     borderWidth: 2,
                     fill: !isMultiple,
-                    tension: 0.3,
+                    tension: isMultiple ? 0.3 : 0,
+                    stepped: isMultiple ? false : 'after',
                     pointBackgroundColor: mainColor,
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
