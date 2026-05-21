@@ -33,7 +33,7 @@ public class HabitService {
         habit.setTargetCount(request.targetCount() != null ? request.targetCount() : 1);
         habit.setReminderTime(request.reminderTime());
         habit.setReminderHour(request.reminderHour());
-        habit.setIntervalHours(request.intervalHours());
+        habit.setIntervalMinutes(request.intervalMinutes());
         habit.setNotificationsEnabled(request.notificationsEnabled() != null ? request.notificationsEnabled() : false);
         habit.setUser(user);
         return toDto(habitRepository.save(habit));
@@ -68,7 +68,7 @@ public class HabitService {
         habit.setTargetCount(request.targetCount() != null ? request.targetCount() : 1);
         habit.setReminderTime(request.reminderTime());
         habit.setReminderHour(request.reminderHour());
-        habit.setIntervalHours(request.intervalHours());
+        habit.setIntervalMinutes(request.intervalMinutes());
         habit.setNotificationsEnabled(request.notificationsEnabled() != null ? request.notificationsEnabled() : habit.getNotificationsEnabled());
         return toDto(habitRepository.save(habit));
     }
@@ -92,7 +92,7 @@ public class HabitService {
                 habit.getTargetCount(),
                 habit.getReminderTime(),
                 habit.getReminderHour(),
-                habit.getIntervalHours(),
+                habit.getIntervalMinutes(),
                 habit.getNotificationsEnabled(),
                 habit.getCreatedAt(),
                 totalCompletions,

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS habits (
     target_count INTEGER DEFAULT 1,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     reminder_time VARCHAR(10),
-    interval_hours INTEGER,
+    interval_minutes INTEGER,
     notifications_enabled BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT habits_frequency_check CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'INTERVAL'))
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS habits (
 -- Обновить constraint и добавить колонку если таблица уже существовала
 ALTER TABLE habits DROP CONSTRAINT IF EXISTS habits_frequency_check;
 ALTER TABLE habits ADD CONSTRAINT habits_frequency_check CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY', 'INTERVAL'));
-ALTER TABLE habits ADD COLUMN IF NOT EXISTS interval_hours INTEGER;
+ALTER TABLE habits ADD COLUMN IF NOT EXISTS interval_minutes INTEGER;
 ALTER TABLE habits ADD COLUMN IF NOT EXISTS reminder_hour VARCHAR(5);
 
 -- Habit completions table

@@ -56,7 +56,7 @@ class HabitServiceTest {
         savedHabit.setFrequency(request.frequency());
         savedHabit.setTargetCount(request.targetCount());
         savedHabit.setReminderTime(request.reminderTime());
-        savedHabit.setIntervalHours(request.intervalHours());
+        savedHabit.setIntervalMinutes(request.intervalMinutes());
         savedHabit.setUser(user);
 
         when(habitRepository.save(any(Habit.class))).thenReturn(savedHabit);

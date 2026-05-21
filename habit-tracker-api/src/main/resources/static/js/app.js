@@ -58,6 +58,44 @@ function getMonthKey(dateStr) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function isCompletedInPeriod(habit, todayComps, yesterdayComps) {
+    if (habit.frequency !== 'INTERVAL') {
+        return todayComps.length > 0;
+    }
+    const { start, end } = getCurrentPeriodBounds(habit);
+    const allComps = [...(yesterdayComps || []), ...(todayComps || [])];
+    return allComps.some(c => {
+        if (!c.completedAt) return false;
+        const t = new Date(c.completedAt).getTime();
+        return t >= start.getTime() && t < end.getTime();
+    });
+}
+
+function getCurrentPeriodBounds(habit) {
+    const now = getTestDate();
+    const reminderTime = habit.reminderTime || '00:00';
+    const intervalMinutes = habit.intervalMinutes || 240;
+    const [rh, rm] = reminderTime.split(':').map(Number);
+    const baseTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), rh || 0, rm || 0, 0);
+    const intervalMs = intervalMinutes * 60 * 1000;
+    const diff = now.getTime() - baseTime.getTime();
+    const periodIndex = Math.floor(diff / intervalMs);
+    const periodStart = new Date(baseTime.getTime() + periodIndex * intervalMs);
+    const periodEnd = new Date(periodStart.getTime() + intervalMs);
+    return { start: periodStart, end: periodEnd };
+}
+
+function countCompletionsInPeriod(habit, todayComps, yesterdayComps) {
+    if (habit.frequency !== 'INTERVAL') return 0;
+    const { start, end } = getCurrentPeriodBounds(habit);
+    const allComps = [...(yesterdayComps || []), ...(todayComps || [])];
+    return allComps.filter(c => {
+        if (!c.completedAt) return false;
+        const t = new Date(c.completedAt).getTime();
+        return t >= start.getTime() && t < end.getTime();
+    }).length;
+}
+
 function calculateStreak(habit, completions) {
     if (!completions || completions.length === 0) return 0;
     const frequency = habit.frequency || 'DAILY';
@@ -514,12 +552,15 @@ function showNav() {
 function showSection(section) {
     document.getElementById('habits-section').style.display = section === 'habits' ? 'block' : 'none';
     document.getElementById('analytics-section').style.display = section === 'analytics' ? 'block' : 'none';
+    document.getElementById('profile-section').style.display = section === 'profile' ? 'block' : 'none';
 
     if (section === 'analytics') {
         document.getElementById('analytics-habit-select').value = '';
         document.getElementById('analytics-content').innerHTML = '';
         loadOverallAnalytics();
         loadHabitsForAnalytics();
+    } else if (section === 'profile') {
+        loadProfile();
     }
 }
 
@@ -540,8 +581,107 @@ function logout() {
     document.getElementById('nav').style.display = 'none';
     document.getElementById('habits-section').style.display = 'none';
     document.getElementById('analytics-section').style.display = 'none';
+    document.getElementById('profile-section').style.display = 'none';
     document.getElementById('auth-section').style.display = 'block';
     showNotification('Вы вышли из системы', 'info');
+}
+
+// ============ ПРОФИЛЬ ============
+async function loadProfile() {
+    try {
+        const response = await fetch(`${API_URL}/users/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Ошибка');
+        const profile = await response.json();
+
+        document.getElementById('profile-username').textContent = profile.username;
+        document.getElementById('profile-email-input').value = profile.email || '';
+        document.getElementById('profile-created').textContent = profile.createdAt
+            ? new Date(profile.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+            : '—';
+        document.getElementById('profile-habit-count').textContent = profile.habitCount || 0;
+        document.getElementById('profile-total-completions').textContent = profile.totalCompletions || 0;
+    } catch (error) {
+        showNotification('Ошибка загрузки профиля', 'error');
+    }
+}
+
+async function saveProfileEmail() {
+    const email = document.getElementById('profile-email-input').value.trim();
+    if (!email) {
+        showNotification('Введите email', 'error');
+        return;
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+        showNotification('Введите корректный email', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/users/me/email`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ email })
+        });
+
+        if (!response.ok) throw new Error('Ошибка');
+        showNotification('Email обновлён!', 'success');
+        loadProfile();
+    } catch (error) {
+        showNotification('Ошибка обновления email', 'error');
+    }
+}
+
+function openResetProfileModal() {
+    document.getElementById('reset-profile-modal').style.display = 'flex';
+}
+
+function closeResetProfileModal() {
+    document.getElementById('reset-profile-modal').style.display = 'none';
+    document.getElementById('reset-profile-password').value = '';
+}
+
+async function resetProfile() {
+    const password = document.getElementById('reset-profile-password').value;
+    if (!password) {
+        showNotification('Введите пароль', 'error');
+        return;
+    }
+
+    const confirmed = confirm('⚠️ Вы уверены, что хотите УДАЛИТЬ ВСЁ?\n\nВсе привычки и вся статистика будут безвозвратно удалены. Это действие необратимо.');
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`${API_URL}/users/me/reset`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ password })
+        });
+
+        if (!response.ok) {
+            if (response.status === 400) {
+                showNotification('Неверный пароль', 'error');
+                return;
+            }
+            throw new Error('Ошибка');
+        }
+
+        closeResetProfileModal();
+        showNotification('Профиль полностью сброшен', 'success');
+        loadHabits();
+        loadProfile();
+    } catch (error) {
+        showNotification('Ошибка сброса профиля', 'error');
+    }
 }
 
 // Авторизация
@@ -579,6 +719,17 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     const email = document.getElementById('reg-email').value;
     const password = document.getElementById('reg-password').value;
 
+    if (username.length < 3) {
+        showNotification('Имя пользователя должно быть от 3 символов', 'error');
+        return;
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+        showNotification('Введите корректный email', 'error');
+        return;
+    }
+
     try {
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
@@ -613,9 +764,13 @@ document.getElementById('habit-form').addEventListener('submit', async (e) => {
         }
     }
 
-    const intervalHours = freq === 'INTERVAL'
-        ? parseInt(document.getElementById('habit-interval').value) || 4
-        : null;
+    let intervalMinutes = null;
+    if (freq === 'INTERVAL') {
+        const hours = parseInt(document.getElementById('habit-interval-hours').value) || 0;
+        const minutes = parseInt(document.getElementById('habit-interval-minutes').value) || 0;
+        intervalMinutes = hours * 60 + minutes;
+        if (intervalMinutes <= 0) intervalMinutes = 240; // default 4 hours
+    }
 
     const habit = {
         name: document.getElementById('habit-name').value,
@@ -626,7 +781,7 @@ document.getElementById('habit-form').addEventListener('submit', async (e) => {
         targetCount: 1,
         reminderTime: reminderValue,
         reminderHour: reminderHourValue,
-        intervalHours: intervalHours,
+        intervalMinutes: intervalMinutes,
         notificationsEnabled: false
     };
 
@@ -690,8 +845,14 @@ async function addHabitToList(habit) {
     }
 
     const streakLabel = !isMultiple ? getStreakLabel(habit.frequency) : '';
+    const isIntervalNew = habit.frequency === 'INTERVAL';
     const statsHtml = isMultiple
-        ? `<div class="stats-row"><div class="stat"><div class="value">0</div><div class="label">Всего</div></div></div>`
+        ? `<div class="stats-row">
+            <div class="stat"><div class="value">0</div><div class="label">Всего</div></div>
+            <div class="stat"><div class="value" id="stat-today-${habit.id}">0</div><div class="label">Сегодня</div></div>
+            ${isIntervalNew ? `<div class="stat"><div class="value" id="stat-period-${habit.id}">0</div><div class="label">За период</div></div>` : ''}
+            <div class="stat"><div class="value" id="stat-yesterday-${habit.id}">0</div><div class="label">Вчера</div></div>
+           </div>`
         : `<div class="stats-row"><div class="stat"><div class="value">0</div><div class="label">Всего</div></div><div class="stat"><div class="value">0</div><div class="label">${streakLabel}</div></div></div>`;
 
     card.innerHTML = `
@@ -756,6 +917,8 @@ async function loadHabits(preserveScroll = false) {
                 token = null;
                 document.getElementById('nav').style.display = 'none';
                 document.getElementById('habits-section').style.display = 'none';
+                document.getElementById('analytics-section').style.display = 'none';
+                document.getElementById('profile-section').style.display = 'none';
                 document.getElementById('auth-section').style.display = 'block';
                 container.innerHTML = '';
                 showNotification('Сессия истекла. Войдите снова', 'error');
@@ -824,10 +987,13 @@ async function loadHabits(preserveScroll = false) {
 
             const streakLabel = !isMultiple ? getStreakLabel(habit.frequency) : '';
             // Для многоразовых — три цифры: Всего / Сегодня / Вчера
+            // Для INTERVAL — четыре: Всего / Сегодня / За период / Вчера
+            const isInterval = habit.frequency === 'INTERVAL';
             const statsHtml = isMultiple
                 ? `<div class="stats-row">
                     <div class="stat"><div class="value">${habit.totalCompletions || 0}</div><div class="label">Всего</div></div>
                     <div class="stat"><div class="value" id="stat-today-${habit.id}">—</div><div class="label">Сегодня</div></div>
+                    ${isInterval ? `<div class="stat"><div class="value" id="stat-period-${habit.id}">—</div><div class="label">За период</div></div>` : ''}
                     <div class="stat"><div class="value" id="stat-yesterday-${habit.id}">—</div><div class="label">Вчера</div></div>
                    </div>`
                 : `<div class="stats-row">
@@ -879,7 +1045,10 @@ async function loadHabits(preserveScroll = false) {
                 yearComps = await fetchCompletions(habit.id, yearStart, today);
             }
 
-            const completedToday = !isMultiple && todayComps.length > 0;
+            const isIntervalSingle = !isMultiple && habit.frequency === 'INTERVAL';
+            const completedToday = isIntervalSingle
+                ? isCompletedInPeriod(habit, todayComps, yesterdayComps)
+                : (!isMultiple && todayComps.length > 0);
             const todayCount = todayComps.length;
             const streak = !isMultiple ? calculateStreak(habit, yearComps) : 0;
 
@@ -913,6 +1082,12 @@ async function loadHabits(preserveScroll = false) {
                 const statYesterday = document.getElementById(`stat-yesterday-${habit.id}`);
                 if (statToday) statToday.textContent = todayCount;
                 if (statYesterday) statYesterday.textContent = yesterdayComps.length;
+
+                const statPeriod = document.getElementById(`stat-period-${habit.id}`);
+                if (statPeriod) {
+                    const periodCount = countCompletionsInPeriod(habit, todayComps, yesterdayComps);
+                    statPeriod.textContent = periodCount;
+                }
 
                 const title = document.getElementById(`today-title-${habit.id}`);
                 if (title) {
@@ -1076,7 +1251,9 @@ async function openEditModal(habitId) {
         document.getElementById('edit-habit-category').value = habit.category || 'OTHER';
         document.getElementById('edit-habit-frequency').value = habit.frequency || 'DAILY';
         document.getElementById('edit-habit-notifications').checked = !!habit.notificationsEnabled;
-        document.getElementById('edit-habit-interval').value = habit.intervalHours || 4;
+        const intervalMins = habit.intervalMinutes || 240;
+        document.getElementById('edit-habit-interval-hours').value = Math.floor(intervalMins / 60);
+        document.getElementById('edit-habit-interval-minutes').value = intervalMins % 60;
 
         // Установка пикера в зависимости от частоты
         updateEditReminderPicker();
@@ -1182,9 +1359,13 @@ async function saveHabitEdit(e) {
                 editReminderHour = document.getElementById('edit-habit-reminder-hour-monthly').value || null;
             }
         }
-        const editInterval = editFreq === 'INTERVAL'
-            ? parseInt(document.getElementById('edit-habit-interval').value) || 4
-            : null;
+        let editInterval = null;
+        if (editFreq === 'INTERVAL') {
+            const editHours = parseInt(document.getElementById('edit-habit-interval-hours').value) || 0;
+            const editMins = parseInt(document.getElementById('edit-habit-interval-minutes').value) || 0;
+            editInterval = editHours * 60 + editMins;
+            if (editInterval <= 0) editInterval = 240;
+        }
 
         const updated = {
             name,
@@ -1195,7 +1376,7 @@ async function saveHabitEdit(e) {
             targetCount: habit.habitType === 'MULTIPLE' ? targetCount : (habit.targetCount || 1),
             reminderTime: editReminder,
             reminderHour: editReminderHour,
-            intervalHours: editInterval,
+            intervalMinutes: editInterval,
             notificationsEnabled: document.getElementById('edit-habit-notifications').checked
         };
 
@@ -1243,7 +1424,10 @@ async function refreshHabitCard(habitId) {
         if (!habitRes.ok) throw new Error('Ошибка');
         const habit = await habitRes.json();
         const isMultiple = habit.habitType === 'MULTIPLE';
-        const completedToday = !isMultiple && todayComps.length > 0;
+        const isIntervalSingle = !isMultiple && habit.frequency === 'INTERVAL';
+        const completedToday = isIntervalSingle
+            ? isCompletedInPeriod(habit, todayComps, yesterdayComps)
+            : (!isMultiple && todayComps.length > 0);
         const todayCount = todayComps.length;
 
         let streak = 0;
@@ -1271,10 +1455,13 @@ async function refreshHabitCard(habitId) {
         }
 
         const streakLabel = !isMultiple ? getStreakLabel(habit.frequency) : '';
+        const isIntervalRefresh = habit.frequency === 'INTERVAL';
+        const periodCountRefresh = isIntervalRefresh ? countCompletionsInPeriod(habit, todayComps, yesterdayComps) : 0;
         const statsHtml = isMultiple
             ? `<div class="stats-row">
                 <div class="stat"><div class="value">${habit.totalCompletions || 0}</div><div class="label">Всего</div></div>
                 <div class="stat"><div class="value">${todayCount}</div><div class="label">Сегодня</div></div>
+                ${isIntervalRefresh ? `<div class="stat"><div class="value">${periodCountRefresh}</div><div class="label">За период</div></div>` : ''}
                 <div class="stat"><div class="value">${yesterdayComps.length}</div><div class="label">Вчера</div></div>
                </div>`
             : `<div class="stats-row">
@@ -1541,15 +1728,25 @@ function formatReminderLabel(habit) {
         return `${base}${timeSuffix}${timer ? ` · ${timer}` : ''}`;
     }
     if (freq === 'INTERVAL') {
-        const hours = habit.intervalHours || 4;
+        const totalMinutes = habit.intervalMinutes || 240;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
         const start = val || '--:--';
-        const timer = getTimeUntil(freq, val, val, hours);
-        return `⏱️ Каждые ${hours} ч (с ${start})${timer ? ` · ${timer}` : ''}`;
+        const timer = getTimeUntil(freq, val, val, totalMinutes);
+        let intervalText;
+        if (hours > 0 && minutes > 0) {
+            intervalText = `${hours} ч ${minutes} м`;
+        } else if (hours > 0) {
+            intervalText = `${hours} ч`;
+        } else {
+            intervalText = `${minutes} м`;
+        }
+        return `⏱️ Каждые ${intervalText} (с ${start})${timer ? ` · ${timer}` : ''}`;
     }
     return '';
 }
 
-function getTimeUntil(freq, val, hour, intervalHours) {
+function getTimeUntil(freq, val, hour, intervalMinutes) {
     const now = getTestDate();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -1566,7 +1763,7 @@ function getTimeUntil(freq, val, hour, intervalHours) {
     }
 
     if (freq === 'INTERVAL') {
-        const interval = (intervalHours || 4) * 60;
+        const interval = intervalMinutes || 240;
         if (!hour) return '';
         const [h, m] = hour.split(':').map(Number);
         const startMinutes = (h || 0) * 60 + (m || 0);

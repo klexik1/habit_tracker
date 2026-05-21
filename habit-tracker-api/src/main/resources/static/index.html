@@ -24,6 +24,7 @@
             <nav id="nav" style="display: none;">
                 <button onclick="showSection('habits')">Привычки</button>
                 <button onclick="showSection('analytics')">Аналитика</button>
+                <button onclick="showSection('profile')">Профиль</button>
                 <button onclick="logout()">Выйти</button>
             </nav>
         </header>
@@ -43,7 +44,7 @@
             <div class="auth-container" id="register-container" style="display: none;">
                 <h2>Регистрация</h2>
                 <form id="register-form">
-                    <input type="text" id="reg-username" placeholder="Имя пользователя" required>
+                    <input type="text" id="reg-username" placeholder="Имя пользователя (от 3 символов)" required minlength="3">
                     <input type="email" id="reg-email" placeholder="Email" required>
                     <input type="password" id="reg-password" placeholder="Пароль (мин. 6 символов)" required minlength="6">
                     <button type="submit">Зарегистрироваться</button>
@@ -92,8 +93,13 @@
                         </select>
                     </div>
                     <div class="form-group" id="interval-group" style="display:none;">
-                        <label for="habit-interval">⏱️ Повторять каждые (часов)</label>
-                        <input type="number" id="habit-interval" min="1" max="168" value="4" placeholder="Например: 4">
+                        <label>⏱️ Повторять каждые</label>
+                        <div class="interval-inputs" style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="habit-interval-hours" min="0" max="168" value="4" placeholder="Часы" style="width: 80px;">
+                            <span>ч</span>
+                            <input type="number" id="habit-interval-minutes" min="0" max="59" value="0" placeholder="Мин" style="width: 80px;">
+                            <span>м</span>
+                        </div>
                     </div>
                     <div class="form-group" id="reminder-container">
                         <label id="reminder-label">⏰ Планируемое время выполнения</label>
@@ -147,6 +153,62 @@
             </div>
         </section>
 
+        <!-- Профиль -->
+        <section id="profile-section" style="display: none;">
+            <h2>Профиль</h2>
+            <div class="profile-card">
+                <div class="profile-info">
+                    <div class="profile-field">
+                        <label>Имя пользователя</label>
+                        <div id="profile-username" class="profile-value">—</div>
+                    </div>
+                    <div class="profile-field">
+                        <label>Email</label>
+                        <input type="email" id="profile-email-input" class="profile-input" placeholder="Ваш email">
+                        <button class="btn-save" onclick="saveProfileEmail()">💾 Сохранить email</button>
+                    </div>
+                    <div class="profile-field">
+                        <label>Дата регистрации</label>
+                        <div id="profile-created" class="profile-value">—</div>
+                    </div>
+                    <div class="profile-field">
+                        <label>Статистика</label>
+                        <div class="profile-stats">
+                            <div class="profile-stat">
+                                <span id="profile-habit-count">0</span>
+                                <span>привычек</span>
+                            </div>
+                            <div class="profile-stat">
+                                <span id="profile-total-completions">0</span>
+                                <span>выполнений</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="profile-danger">
+                    <h4>⚠️ Опасная зона</h4>
+                    <p>Это действие удалит ВСЕ ваши привычки и всю статистику безвозвратно.</p>
+                    <button class="btn-reset" onclick="openResetProfileModal()">🗑️ Полный сброс профиля</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Модалка сброса профиля -->
+        <div id="reset-profile-modal" class="modal">
+            <div class="modal-content">
+                <h3>🔴 Полный сброс профиля</h3>
+                <p style="color: #e74c3c; margin-bottom: 15px;">Все привычки и статистика будут удалены навсегда.</p>
+                <div class="form-group">
+                    <label>Введите пароль для подтверждения</label>
+                    <input type="password" id="reset-profile-password" placeholder="Ваш пароль" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-reset" onclick="resetProfile()">🗑️ Удалить всё</button>
+                    <button type="button" class="btn-cancel" onclick="closeResetProfileModal()">❌ Отмена</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Модалка редактирования -->
         <div id="edit-modal" class="modal">
             <div class="modal-content">
@@ -185,8 +247,13 @@
                         <input type="number" id="edit-habit-target" min="0" value="1">
                     </div>
                     <div class="form-group" id="edit-interval-group" style="display:none;">
-                        <label>⏱️ Повторять каждые (часов)</label>
-                        <input type="number" id="edit-habit-interval" min="1" max="168" value="4">
+                        <label>⏱️ Повторять каждые</label>
+                        <div class="interval-inputs" style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="edit-habit-interval-hours" min="0" max="168" value="4" placeholder="Часы" style="width: 80px;">
+                            <span>ч</span>
+                            <input type="number" id="edit-habit-interval-minutes" min="0" max="59" value="0" placeholder="Мин" style="width: 80px;">
+                            <span>м</span>
+                        </div>
                     </div>
                     <div class="form-group" id="edit-reminder-container">
                         <label id="edit-reminder-label">⏰ Планируемое время выполнения</label>

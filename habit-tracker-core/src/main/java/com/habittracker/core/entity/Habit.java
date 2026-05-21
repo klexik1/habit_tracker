@@ -41,8 +41,8 @@ public class Habit {
     @Column(name = "reminder_hour", length = 5)
     private String reminderHour;
 
-    @Column(name = "interval_hours")
-    private Integer intervalHours;
+    @Column(name = "interval_minutes")
+    private Integer intervalMinutes;
 
     @Column(name = "notifications_enabled")
     private Boolean notificationsEnabled = false;
@@ -85,8 +85,8 @@ public class Habit {
     public String getReminderHour() { return reminderHour; }
     public void setReminderHour(String reminderHour) { this.reminderHour = reminderHour; }
 
-    public Integer getIntervalHours() { return intervalHours; }
-    public void setIntervalHours(Integer intervalHours) { this.intervalHours = intervalHours; }
+    public Integer getIntervalMinutes() { return intervalMinutes; }
+    public void setIntervalMinutes(Integer intervalMinutes) { this.intervalMinutes = intervalMinutes; }
 
     public Boolean getNotificationsEnabled() { return notificationsEnabled; }
     public void setNotificationsEnabled(Boolean notificationsEnabled) { this.notificationsEnabled = notificationsEnabled; }
