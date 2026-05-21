@@ -476,7 +476,7 @@ async function checkReminders() {
         if (!res.ok) return;
         const habits = await res.json();
 
-        const notifyMidnight = window.profileNotifyMidnight;
+        const notifyMidnight = window.profileEmailNotifications;
         const notifyHourBefore = window.profileNotifyHourBefore;
 
         for (const habit of habits) {
@@ -647,11 +647,9 @@ async function loadProfile() {
         document.getElementById('profile-username').textContent = profile.username;
         document.getElementById('profile-email-input').value = profile.email || '';
         document.getElementById('profile-email-notifications').checked = profile.emailNotificationsEnabled || false;
-        const midnightEl = document.getElementById('profile-notify-midnight');
+        window.profileEmailNotifications = profile.emailNotificationsEnabled || false;
         const hourBeforeEl = document.getElementById('profile-notify-hour-before');
-        if (midnightEl) midnightEl.checked = profile.notifyAtMidnight || false;
         if (hourBeforeEl) hourBeforeEl.checked = profile.notifyHourBefore || false;
-        window.profileNotifyMidnight = profile.notifyAtMidnight || false;
         window.profileNotifyHourBefore = profile.notifyHourBefore || false;
         document.getElementById('profile-created').textContent = profile.createdAt
             ? new Date(profile.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -713,9 +711,7 @@ async function saveEmailNotifications(enabled) {
 }
 
 async function savePushNotificationSettings() {
-    const notifyAtMidnight = document.getElementById('profile-notify-midnight')?.checked || false;
     const notifyHourBefore = document.getElementById('profile-notify-hour-before')?.checked || false;
-    window.profileNotifyMidnight = notifyAtMidnight;
     window.profileNotifyHourBefore = notifyHourBefore;
     try {
         const response = await fetch(`${API_URL}/users/me/push-notifications`, {
@@ -724,7 +720,7 @@ async function savePushNotificationSettings() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ notifyAtMidnight, notifyHourBefore })
+            body: JSON.stringify({ notifyAtMidnight: false, notifyHourBefore })
         });
         if (!response.ok) throw new Error('Ошибка');
         showNotification('🔔 Настройки push-уведомлений сохранены', 'success');
