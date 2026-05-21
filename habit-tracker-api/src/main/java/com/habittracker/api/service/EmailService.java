@@ -46,6 +46,28 @@ public class EmailService {
     }
 
     @Async
+    public void sendVerificationCode(String to, String code) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject("🔐 Код подтверждения email");
+
+            String htmlContent = buildVerificationCodeHtml(code);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            log.info("✅ Код верификации отправлен на {}", to);
+        } catch (MessagingException e) {
+            log.error("❌ Ошибка отправки кода верификации на {}: {}", to, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("❌ Неожиданная ошибка при отправке кода на {}: {}", to, e.getMessage(), e);
+        }
+    }
+
+    @Async
     public void sendHourBeforeReminder(String to, String habitName, String habitDescription) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -153,6 +175,42 @@ public class EmailService {
         return template
             .replace("{{HABIT_NAME}}", escapeHtml(habitName))
             .replace("{{HABIT_DESC}}", escapeHtml(habitDescription != null ? habitDescription : "Без описания"));
+    }
+
+    private String buildVerificationCodeHtml(String code) {
+        String template = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .header h1 { margin: 0; font-size: 24px; }
+                    .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; text-align: center; }
+                    .code { font-size: 36px; font-weight: bold; color: #667eea; letter-spacing: 8px; margin: 20px 0; padding: 15px; background: #fff; border-radius: 8px; border: 2px dashed #667eea; display: inline-block; }
+                    .footer { text-align: center; margin-top: 20px; color: #999; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🔐 Подтверждение email</h1>
+                    </div>
+                    <div class="content">
+                        <p>Введите этот код в приложении Habit Tracker для подтверждения вашего email:</p>
+                        <div class="code">{{CODE}}</div>
+                        <p style="color: #888; font-size: 14px;">Код действителен в течение 15 минут.<br>Если вы не запрашивали подтверждение — проигнорируйте это письмо.</p>
+                    </div>
+                    <div class="footer">
+                        <p>© 2026 Habit Tracker</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """;
+        return template.replace("{{CODE}}", escapeHtml(code));
     }
 
     private String escapeHtml(String text) {

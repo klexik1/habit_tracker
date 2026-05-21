@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications_enabled BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_at_midnight BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_hour_before BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_code VARCHAR(6);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMP;
 
 -- Habits table
 CREATE TABLE IF NOT EXISTS habits (

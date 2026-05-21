@@ -28,6 +28,15 @@ public class User {
     @Column(name = "notify_hour_before")
     private Boolean notifyHourBefore = false;
 
+    @Column(name = "email_verified")
+    private Boolean emailVerified = false;
+
+    @Column(name = "email_verification_code", length = 6)
+    private String emailVerificationCode;
+
+    @Column(name = "email_verification_expires_at")
+    private LocalDateTime emailVerificationExpiresAt;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -53,6 +62,15 @@ public class User {
 
     public Boolean getNotifyHourBefore() { return notifyHourBefore; }
     public void setNotifyHourBefore(Boolean notifyHourBefore) { this.notifyHourBefore = notifyHourBefore; }
+
+    public Boolean getEmailVerified() { return emailVerified; }
+    public void setEmailVerified(Boolean emailVerified) { this.emailVerified = emailVerified; }
+
+    public String getEmailVerificationCode() { return emailVerificationCode; }
+    public void setEmailVerificationCode(String emailVerificationCode) { this.emailVerificationCode = emailVerificationCode; }
+
+    public LocalDateTime getEmailVerificationExpiresAt() { return emailVerificationExpiresAt; }
+    public void setEmailVerificationExpiresAt(LocalDateTime emailVerificationExpiresAt) { this.emailVerificationExpiresAt = emailVerificationExpiresAt; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

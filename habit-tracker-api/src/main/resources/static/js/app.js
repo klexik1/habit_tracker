@@ -648,6 +648,7 @@ async function loadProfile() {
         document.getElementById('profile-email-input').value = profile.email || '';
         document.getElementById('profile-email-notifications').checked = profile.emailNotificationsEnabled || false;
         window.profileEmailNotifications = profile.emailNotificationsEnabled || false;
+        window.profileEmailVerified = profile.emailVerified || false;
         const hourBeforeEl = document.getElementById('profile-notify-hour-before');
         if (hourBeforeEl) hourBeforeEl.checked = profile.notifyHourBefore || false;
         window.profileNotifyHourBefore = profile.notifyHourBefore || false;
@@ -656,8 +657,43 @@ async function loadProfile() {
             : '—';
         document.getElementById('profile-habit-count').textContent = profile.habitCount || 0;
         document.getElementById('profile-total-completions').textContent = profile.totalCompletions || 0;
+
+        // Обновляем UI верификации email
+        updateEmailVerificationUI(profile.emailVerified, profile.email);
     } catch (error) {
         showNotification('Ошибка загрузки профиля', 'error');
+    }
+}
+
+function updateEmailVerificationUI(verified, email) {
+    const statusEl = document.getElementById('email-verification-status');
+    const blockEl = document.getElementById('email-verification-block');
+    const notifyCheckbox = document.getElementById('profile-email-notifications');
+    const notifyHint = document.getElementById('email-notify-hint');
+
+    if (!email) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #e74c3c;">❌ Email не указан</span>';
+        if (blockEl) blockEl.style.display = 'none';
+        if (notifyCheckbox) notifyCheckbox.disabled = true;
+        return;
+    }
+
+    if (verified) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #27ae60;">✅ Email подтверждён</span>';
+        if (blockEl) blockEl.style.display = 'none';
+        if (notifyCheckbox) notifyCheckbox.disabled = false;
+        if (notifyHint) notifyHint.style.color = '#888';
+    } else {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #e74c3c;">⚠️ Email не подтверждён</span>';
+        if (blockEl) blockEl.style.display = 'block';
+        if (notifyCheckbox) {
+            notifyCheckbox.disabled = true;
+            notifyCheckbox.checked = false;
+        }
+        if (notifyHint) {
+            notifyHint.innerHTML = '🔒 Сначала подтвердите email, чтобы включить уведомления';
+            notifyHint.style.color = '#e74c3c';
+        }
     }
 }
 
@@ -685,14 +721,82 @@ async function saveProfileEmail() {
         });
 
         if (!response.ok) throw new Error('Ошибка');
-        showNotification('Email обновлён!', 'success');
-        loadProfile();
+        showNotification('Email обновлён! Теперь отправьте код подтверждения.', 'success');
+        window.profileEmailVerified = false;
+        updateEmailVerificationUI(false, email);
     } catch (error) {
         showNotification('Ошибка обновления email', 'error');
     }
 }
 
+async function sendVerificationCode() {
+    const btn = event.target;
+    btn.disabled = true;
+    try {
+        const response = await fetch(`${API_URL}/users/me/send-verification-code`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Ошибка');
+        showNotification('📩 Код отправлен на ваш email', 'success');
+        startVerificationTimer();
+    } catch (error) {
+        showNotification('Ошибка отправки кода', 'error');
+    } finally {
+        setTimeout(() => { btn.disabled = false; }, 60000);
+    }
+}
+
+function startVerificationTimer() {
+    const timerEl = document.getElementById('verification-timer');
+    if (!timerEl) return;
+    let seconds = 60;
+    timerEl.textContent = `Повторная отправка через ${seconds} сек`;
+    const interval = setInterval(() => {
+        seconds--;
+        if (seconds <= 0) {
+            clearInterval(interval);
+            timerEl.textContent = '';
+        } else {
+            timerEl.textContent = `Повторная отправка через ${seconds} сек`;
+        }
+    }, 1000);
+}
+
+async function verifyEmailCode() {
+    const code = document.getElementById('profile-verification-code').value.trim();
+    if (!code || code.length !== 6) {
+        showNotification('Введите 6-значный код', 'error');
+        return;
+    }
+    try {
+        const response = await fetch(`${API_URL}/users/me/verify-email`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ code })
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || 'Неверный код');
+        }
+        showNotification('✅ Email подтверждён!', 'success');
+        document.getElementById('profile-verification-code').value = '';
+        window.profileEmailVerified = true;
+        updateEmailVerificationUI(true, document.getElementById('profile-email-input').value);
+    } catch (error) {
+        showNotification('Неверный или просроченный код', 'error');
+    }
+}
+
 async function saveEmailNotifications(enabled) {
+    if (enabled && !window.profileEmailVerified) {
+        showNotification('Сначала подтвердите email', 'error');
+        document.getElementById('profile-email-notifications').checked = false;
+        return;
+    }
     try {
         const response = await fetch(`${API_URL}/users/me/email-notifications`, {
             method: 'PUT',
@@ -704,9 +808,11 @@ async function saveEmailNotifications(enabled) {
         });
 
         if (!response.ok) throw new Error('Ошибка');
+        window.profileEmailNotifications = enabled;
         showNotification(enabled ? '📧 Email-уведомления включены' : '📧 Email-уведомления выключены', 'success');
     } catch (error) {
         showNotification('Ошибка сохранения настроек', 'error');
+        document.getElementById('profile-email-notifications').checked = !enabled;
     }
 }
 

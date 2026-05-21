@@ -59,7 +59,14 @@ public class EmailReminderService {
                     skippedCount++;
                     continue;
                 }
-                
+
+                // Проверяем, подтверждён ли email
+                if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+                    log.debug("⏭ Пропущена привычка '{}' - email не подтверждён", habit.getName());
+                    skippedCount++;
+                    continue;
+                }
+
                 // Проверяем, включены ли уведомления у привычки
                 if (!Boolean.TRUE.equals(habit.getNotificationsEnabled())) {
                     log.debug("⏭ Пропущена привычка '{}' - у привычки отключены уведомления", habit.getName());
@@ -102,6 +109,10 @@ public class EmailReminderService {
         User user = habit.getUser();
         if (user == null || user.getEmail() == null) {
             log.warn("У привычки {} нет пользователя или email", habitId);
+            return;
+        }
+        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+            log.warn("У пользователя привычки {} не подтверждён email", habitId);
             return;
         }
         emailService.sendHabitReminder(user.getEmail(), habit.getName(), habit.getDescription());
@@ -168,6 +179,9 @@ public class EmailReminderService {
             try {
                 User user = habit.getUser();
                 if (user == null || !Boolean.TRUE.equals(user.getEmailNotificationsEnabled())) {
+                    continue;
+                }
+                if (!Boolean.TRUE.equals(user.getEmailVerified())) {
                     continue;
                 }
                 if (!Boolean.TRUE.equals(habit.getNotificationsEnabled())) {

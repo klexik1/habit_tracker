@@ -7,6 +7,7 @@ public record ProfileDto(
     String username,
     String email,
     Boolean emailNotificationsEnabled,
+    Boolean emailVerified,
     Boolean notifyAtMidnight,
     Boolean notifyHourBefore,
     LocalDateTime createdAt,

@@ -62,7 +62,7 @@ public class UserService {
                         h.getId(), java.time.LocalDate.of(2000, 1, 1), java.time.LocalDate.now()))
                 .sum();
         return new ProfileDto(user.getId(), user.getUsername(), user.getEmail(),
-                user.getEmailNotificationsEnabled(), user.getNotifyAtMidnight(), user.getNotifyHourBefore(),
+                user.getEmailNotificationsEnabled(), user.getEmailVerified(), user.getNotifyAtMidnight(), user.getNotifyHourBefore(),
                 user.getCreatedAt(), habitCount, totalCompletions);
     }
 
@@ -84,7 +84,50 @@ public class UserService {
         if (!email.equals(user.getEmail()) && userRepository.existsByEmail(email)) {
             throw new BadRequestException("Email already exists");
         }
+        boolean changed = !email.equals(user.getEmail());
         user.setEmail(email);
+        if (changed) {
+            user.setEmailVerified(false);
+            user.setEmailNotificationsEnabled(false);
+            user.setEmailVerificationCode(null);
+            user.setEmailVerificationExpiresAt(null);
+        }
+        userRepository.save(user);
+    }
+
+    public String generateVerificationCode(User user) {
+        String code = String.format("%06d", (int) (Math.random() * 1_000_000));
+        user.setEmailVerificationCode(code);
+        user.setEmailVerificationExpiresAt(java.time.LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+        return code;
+    }
+
+    public boolean verifyEmailCode(User user, String code) {
+        if (code == null || code.isBlank()) {
+            return false;
+        }
+        String storedCode = user.getEmailVerificationCode();
+        java.time.LocalDateTime expiresAt = user.getEmailVerificationExpiresAt();
+        if (storedCode == null || expiresAt == null) {
+            return false;
+        }
+        if (java.time.LocalDateTime.now().isAfter(expiresAt)) {
+            return false;
+        }
+        if (!storedCode.equals(code)) {
+            return false;
+        }
+        user.setEmailVerified(true);
+        user.setEmailVerificationCode(null);
+        user.setEmailVerificationExpiresAt(null);
+        userRepository.save(user);
+        return true;
+    }
+
+    public void clearVerificationCode(User user) {
+        user.setEmailVerificationCode(null);
+        user.setEmailVerificationExpiresAt(null);
         userRepository.save(user);
     }
 
