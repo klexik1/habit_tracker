@@ -25,7 +25,6 @@ public class HabitController {
 
     @PostMapping
     public ResponseEntity<HabitDto> create(@Valid @RequestBody CreateHabitRequest request, Authentication auth) {
-        System.out.println("[CREATE] frequency=" + request.frequency() + ", type=" + request.habitType());
         User user = userService.findByUsername(auth.getName());
         return ResponseEntity.ok(habitService.createHabit(request, user));
     }

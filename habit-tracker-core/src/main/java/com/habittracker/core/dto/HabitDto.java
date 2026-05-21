@@ -16,6 +16,7 @@ public record HabitDto(
     HabitType habitType,
     Integer targetCount,
     LocalTime reminderTime,
+    Boolean notificationsEnabled,
     LocalDateTime createdAt,
     Long totalCompletions,
     Long todayCompletions,

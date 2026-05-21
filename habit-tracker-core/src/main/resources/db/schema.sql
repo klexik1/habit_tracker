@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS habits (
     target_count INTEGER DEFAULT 1,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     reminder_time TIME,
+    notifications_enabled BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT habits_frequency_check CHECK (frequency IN ('DAILY', 'WEEKLY', 'MONTHLY'))
 );
@@ -26,9 +27,9 @@ CREATE TABLE IF NOT EXISTS habit_completions (
     id BIGSERIAL PRIMARY KEY,
     habit_id BIGINT NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
     completed_date DATE NOT NULL,
+    completed_at TIMESTAMP,
     completed BOOLEAN NOT NULL DEFAULT false,
-    note TEXT,
-    UNIQUE (habit_id, completed_date)
+    note TEXT
 );
 
 CREATE INDEX idx_habit_completions_date ON habit_completions(completed_date);

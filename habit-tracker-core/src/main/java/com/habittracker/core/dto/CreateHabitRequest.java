@@ -15,5 +15,6 @@ public record CreateHabitRequest(
     @NotNull Frequency frequency,
     HabitType habitType,
     Integer targetCount,
-    LocalTime reminderTime
+    LocalTime reminderTime,
+    Boolean notificationsEnabled
 ) {}

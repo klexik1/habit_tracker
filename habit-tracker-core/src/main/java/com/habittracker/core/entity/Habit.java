@@ -39,6 +39,9 @@ public class Habit {
     @Column(name = "reminder_time")
     private LocalTime reminderTime;
 
+    @Column(name = "notifications_enabled")
+    private Boolean notificationsEnabled = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -73,6 +76,9 @@ public class Habit {
 
     public LocalTime getReminderTime() { return reminderTime; }
     public void setReminderTime(LocalTime reminderTime) { this.reminderTime = reminderTime; }
+
+    public Boolean getNotificationsEnabled() { return notificationsEnabled; }
+    public void setNotificationsEnabled(Boolean notificationsEnabled) { this.notificationsEnabled = notificationsEnabled; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
