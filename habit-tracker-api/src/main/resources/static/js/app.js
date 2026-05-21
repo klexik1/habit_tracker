@@ -657,6 +657,45 @@ async function saveEmailNotifications(enabled) {
     }
 }
 
+async function sendTestEmail() {
+    const email = document.getElementById('profile-email-input').value;
+    if (!email) {
+        showNotification('Сначала укажите email в профиле', 'error');
+        return;
+    }
+    try {
+        const response = await fetch(`${API_URL}/email-test/send?to=${encodeURIComponent(email)}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const text = await response.text();
+        if (response.ok) {
+            showNotification('📧 Тестовое письмо отправлено! Проверьте почту', 'success');
+        } else {
+            showNotification('Ошибка: ' + text, 'error');
+        }
+    } catch (error) {
+        showNotification('Ошибка отправки: ' + error.message, 'error');
+    }
+}
+
+async function triggerReminders() {
+    try {
+        const response = await fetch(`${API_URL}/email-test/trigger-reminders`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const text = await response.text();
+        if (response.ok) {
+            showNotification('🚀 Рассылка запущена! Проверьте логи IDE', 'success');
+        } else {
+            showNotification('Ошибка: ' + text, 'error');
+        }
+    } catch (error) {
+        showNotification('Ошибка запуска: ' + error.message, 'error');
+    }
+}
+
 function openResetProfileModal() {
     document.getElementById('reset-profile-modal').style.display = 'flex';
 }

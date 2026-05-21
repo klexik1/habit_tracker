@@ -4,6 +4,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -15,9 +16,11 @@ public class EmailService {
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     private final JavaMailSender mailSender;
+    private final String fromEmail;
 
-    public EmailService(JavaMailSender mailSender) {
+    public EmailService(JavaMailSender mailSender, @Value("${spring.mail.username}") String fromEmail) {
         this.mailSender = mailSender;
+        this.fromEmail = fromEmail;
     }
 
     @Async
@@ -26,7 +29,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("Habit Tracker <noreply@habittracker.com>");
+            helper.setFrom(fromEmail);
             helper.setTo(to);
             helper.setSubject("⏰ Напоминание о привычке: " + habitName);
 
@@ -34,16 +37,16 @@ public class EmailService {
             helper.setText(htmlContent, true);
 
             mailSender.send(message);
-            log.info("Email отправлен на {}: привычка '{}'", to, habitName);
+            log.info("✅ Email отправлен на {}: привычка '{}'", to, habitName);
         } catch (MessagingException e) {
-            log.error("Ошибка отправки email на {}: {}", to, e.getMessage());
+            log.error("❌ Ошибка создания email для {}: {}", to, e.getMessage(), e);
         } catch (Exception e) {
-            log.error("Неожиданная ошибка при отправке email на {}: {}", to, e.getMessage());
+            log.error("❌ Неожиданная ошибка при отправке email на {}: {}", to, e.getMessage(), e);
         }
     }
 
     private String buildEmailHtml(String habitName, String habitDescription) {
-        return """
+        String template = """
             <!DOCTYPE html>
             <html>
             <head>
@@ -51,7 +54,7 @@ public class EmailService {
                 <style>
                     body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
                     .header h1 { margin: 0; font-size: 24px; }
                     .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
                     .habit-name { font-size: 20px; color: #667eea; margin-bottom: 10px; }
@@ -66,20 +69,31 @@ public class EmailService {
                         <h1>⏰ Напоминание о привычке</h1>
                     </div>
                     <div class="content">
-                        <p class="habit-name"><strong>%s</strong></p>
-                        <p class="habit-description">%s</p>
+                        <p class="habit-name"><strong>{{HABIT_NAME}}</strong></p>
+                        <p class="habit-description">{{HABIT_DESC}}</p>
                         <p>Не забудьте отметить выполнение этой привычки сегодня!</p>
                         <p style="text-align: center; margin-top: 25px;">
                             <a href="http://localhost:8080" class="button">Отметить выполнение</a>
                         </p>
                         <div class="footer">
                             <p>Это письмо отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
-                            <p>© 2024 Habit Tracker</p>
+                            <p>© 2026 Habit Tracker</p>
                         </div>
                     </div>
                 </div>
             </body>
             </html>
-            """.formatted(habitName, habitDescription != null ? habitDescription : "Без описания");
+            """;
+        return template
+            .replace("{{HABIT_NAME}}", escapeHtml(habitName))
+            .replace("{{HABIT_DESC}}", escapeHtml(habitDescription != null ? habitDescription : "Без описания"));
+    }
+
+    private String escapeHtml(String text) {
+        return text
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;");
     }
 }
