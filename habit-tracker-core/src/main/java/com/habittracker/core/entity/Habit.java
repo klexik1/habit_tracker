@@ -46,6 +46,9 @@ public class Habit {
     @Column(name = "notifications_enabled")
     private Boolean notificationsEnabled = false;
 
+    @Column(name = "archived")
+    private Boolean archived = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -89,6 +92,9 @@ public class Habit {
 
     public Boolean getNotificationsEnabled() { return notificationsEnabled; }
     public void setNotificationsEnabled(Boolean notificationsEnabled) { this.notificationsEnabled = notificationsEnabled; }
+
+    public Boolean getArchived() { return archived; }
+    public void setArchived(Boolean archived) { this.archived = archived; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

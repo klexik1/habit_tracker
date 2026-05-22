@@ -23,10 +23,12 @@ public class HabitCompletionService {
     private static final Logger log = LoggerFactory.getLogger(HabitCompletionService.class);
     private final HabitCompletionRepository completionRepository;
     private final HabitRepository habitRepository;
+    private final AchievementService achievementService;
 
-    public HabitCompletionService(HabitCompletionRepository completionRepository, HabitRepository habitRepository) {
+    public HabitCompletionService(HabitCompletionRepository completionRepository, HabitRepository habitRepository, AchievementService achievementService) {
         this.completionRepository = completionRepository;
         this.habitRepository = habitRepository;
+        this.achievementService = achievementService;
     }
 
     /**
@@ -51,7 +53,9 @@ public class HabitCompletionService {
             completion.setCompletedAt(LocalDateTime.now());
             completion.setCompleted(true);
             completion.setNote("Выполнено в " + completion.getCompletedAt().toLocalTime().withSecond(0).withNano(0));
-            return toDto(completionRepository.save(completion));
+            HabitCompletion saved = completionRepository.save(completion);
+            achievementService.checkAndAward(user, habit.getFrequency());
+            return toDto(saved);
         } else {
             // Одноразовая — переключаем
             HabitCompletion completion = completionRepository
@@ -73,7 +77,11 @@ public class HabitCompletionService {
                 }
             }
 
-            return toDto(completionRepository.save(completion));
+            HabitCompletion saved = completionRepository.save(completion);
+            if (saved.isCompleted()) {
+                achievementService.checkAndAward(user, habit.getFrequency());
+            }
+            return toDto(saved);
         }
     }
 

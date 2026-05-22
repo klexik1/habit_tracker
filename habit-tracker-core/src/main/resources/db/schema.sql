@@ -14,6 +14,17 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_hour_before BOOLEAN DEFAULT fa
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_code VARCHAR(6);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(64);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP;
+
+-- Achievements table
+CREATE TABLE IF NOT EXISTS achievements (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(30) NOT NULL,
+    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT achievements_user_type UNIQUE (user_id, type)
+);
 
 -- Habits table
 CREATE TABLE IF NOT EXISTS habits (
@@ -38,6 +49,7 @@ ALTER TABLE habits DROP CONSTRAINT IF EXISTS habits_category_check;
 ALTER TABLE habits ALTER COLUMN category TYPE VARCHAR(50);
 ALTER TABLE habits ADD COLUMN IF NOT EXISTS interval_minutes INTEGER;
 ALTER TABLE habits ADD COLUMN IF NOT EXISTS reminder_hour VARCHAR(5);
+ALTER TABLE habits ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false;
 
 -- Habit completions table
 CREATE TABLE IF NOT EXISTS habit_completions (

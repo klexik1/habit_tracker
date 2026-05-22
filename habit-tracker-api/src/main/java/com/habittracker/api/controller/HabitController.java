@@ -53,4 +53,16 @@ public class HabitController {
         habitService.deleteHabit(id, user);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/archive")
+    public ResponseEntity<HabitDto> archive(@PathVariable Long id, Authentication auth) {
+        User user = userService.findByUsername(auth.getName());
+        return ResponseEntity.ok(habitService.archiveHabit(id, user));
+    }
+
+    @PostMapping("/{id}/unarchive")
+    public ResponseEntity<HabitDto> unarchive(@PathVariable Long id, Authentication auth) {
+        User user = userService.findByUsername(auth.getName());
+        return ResponseEntity.ok(habitService.unarchiveHabit(id, user));
+    }
 }

@@ -67,13 +67,20 @@ public class EmailReminderService {
                     continue;
                 }
 
+                // Проверяем, не архивирована ли привычка
+                if (Boolean.TRUE.equals(habit.getArchived())) {
+                    log.debug("⏭ Пропущена привычка '{}' - архивирована", habit.getName());
+                    skippedCount++;
+                    continue;
+                }
+
                 // Проверяем, включены ли уведомления у привычки
                 if (!Boolean.TRUE.equals(habit.getNotificationsEnabled())) {
                     log.debug("⏭ Пропущена привычка '{}' - у привычки отключены уведомления", habit.getName());
                     skippedCount++;
                     continue;
                 }
-                
+
                 // Проверяем, нужно ли сегодня напоминание (для WEEKLY/MONTHLY)
                 if (!isReminderDay(habit)) {
                     log.debug("⏭ Пропущена привычка '{}' - сегодня не день напоминания", habit.getName());
@@ -182,6 +189,9 @@ public class EmailReminderService {
                     continue;
                 }
                 if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+                    continue;
+                }
+                if (Boolean.TRUE.equals(habit.getArchived())) {
                     continue;
                 }
                 if (!Boolean.TRUE.equals(habit.getNotificationsEnabled())) {

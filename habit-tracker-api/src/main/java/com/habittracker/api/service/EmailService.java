@@ -177,6 +177,68 @@ public class EmailService {
             .replace("{{HABIT_DESC}}", escapeHtml(habitDescription != null ? habitDescription : "Без описания"));
     }
 
+    @Async
+    public void sendPasswordResetEmail(String to, String token) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject("🔑 Сброс пароля — Habit Tracker");
+
+            String htmlContent = buildPasswordResetHtml(token);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            log.info("✅ Письмо для сброса пароля отправлено на {}", to);
+        } catch (MessagingException e) {
+            log.error("❌ Ошибка отправки письма сброса пароля на {}: {}", to, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("❌ Неожиданная ошибка при отправке сброса пароля на {}: {}", to, e.getMessage(), e);
+        }
+    }
+
+    private String buildPasswordResetHtml(String token) {
+        String template = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .header h1 { margin: 0; font-size: 24px; }
+                    .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; text-align: center; }
+                    .button { display: inline-block; background: #667eea; color: white; padding: 14px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; }
+                    .token { font-size: 14px; color: #888; margin-top: 15px; word-break: break-all; }
+                    .footer { text-align: center; margin-top: 20px; color: #999; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🔑 Сброс пароля</h1>
+                    </div>
+                    <div class="content">
+                        <p>Вы запросили сброс пароля для аккаунта Habit Tracker.</p>
+                        <p>Нажмите на кнопку ниже, чтобы создать новый пароль:</p>
+                        <p style="margin: 25px 0;">
+                            <a href="http://localhost:8080/#reset-password?token={{TOKEN}}" class="button">Сбросить пароль</a>
+                        </p>
+                        <p style="color: #888; font-size: 14px;">Ссылка действительна в течение 1 часа.<br>Если вы не запрашивали сброс — проигнорируйте это письмо.</p>
+                    </div>
+                    <div class="footer">
+                        <p>© 2026 Habit Tracker</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """;
+        return template.replace("{{TOKEN}}", escapeHtml(token));
+    }
+
     private String buildVerificationCodeHtml(String code) {
         String template = """
             <!DOCTYPE html>

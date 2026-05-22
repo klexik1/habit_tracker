@@ -138,4 +138,52 @@ public class UserService {
         List<Habit> habits = habitRepository.findByUserId(user.getId());
         habitRepository.deleteAll(habits);
     }
+
+    public String generateResetToken(String email) {
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            // Не раскрываем, существует ли email
+            return null;
+        }
+        String token = java.util.UUID.randomUUID().toString().replace("-", "");
+        user.setResetToken(token);
+        user.setResetTokenExpiresAt(java.time.LocalDateTime.now().plusHours(1));
+        userRepository.save(user);
+        return token;
+    }
+
+    public boolean validateResetToken(String token) {
+        if (token == null || token.isBlank()) return false;
+        return userRepository.findByResetToken(token)
+                .map(u -> u.getResetTokenExpiresAt() != null &&
+                        java.time.LocalDateTime.now().isBefore(u.getResetTokenExpiresAt()))
+                .orElse(false);
+    }
+
+    public void resetPasswordWithToken(String token, String newPassword) {
+        User user = userRepository.findByResetToken(token)
+                .orElseThrow(() -> new BadRequestException("Неверный или просроченный токен"));
+        if (user.getResetTokenExpiresAt() == null ||
+                java.time.LocalDateTime.now().isAfter(user.getResetTokenExpiresAt())) {
+            throw new BadRequestException("Токен истёк");
+        }
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BadRequestException("Пароль должен быть не менее 6 символов");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setResetToken(null);
+        user.setResetTokenExpiresAt(null);
+        userRepository.save(user);
+    }
+
+    public void changePassword(User user, String currentPassword, String newPassword) {
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BadRequestException("Неверный текущий пароль");
+        }
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BadRequestException("Новый пароль должен быть не менее 6 символов");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
 }

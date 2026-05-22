@@ -92,4 +92,13 @@ public class UserController {
         userService.resetProfile(user, body.get("password"));
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/me/change-password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @RequestBody Map<String, String> body,
+            Authentication auth) {
+        User user = userService.findByUsername(auth.getName());
+        userService.changePassword(user, body.get("currentPassword"), body.get("newPassword"));
+        return ResponseEntity.ok(Map.of("message", "Пароль изменён"));
+    }
 }

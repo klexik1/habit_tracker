@@ -44,6 +44,21 @@ function normalizeDate(dateValue) {
     return String(dateValue);
 }
 
+// Извлекает человекочитаемое сообщение из ответа сервера
+function extractServerError(text) {
+    if (!text) return null;
+    text = text.trim();
+    if (text.startsWith('{') && text.endsWith('}')) {
+        try {
+            const json = JSON.parse(text);
+            return json.error || json.message || text;
+        } catch {
+            return text;
+        }
+    }
+    return text;
+}
+
 function getWeekKey(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     const day = d.getDay();
@@ -166,7 +181,28 @@ document.addEventListener('DOMContentLoaded', () => {
     initSkipDayButton();
     initPushNotifications();
     initReminderPicker();
-    if (token) {
+
+    // Обработчик переключения архива: снимаем фильтры типов
+    const archivedToggle = document.getElementById('filter-archived');
+    if (archivedToggle) {
+        archivedToggle.addEventListener('change', () => {
+            if (archivedToggle.checked) {
+                document.getElementById('filter-single').checked = false;
+                document.getElementById('filter-multiple').checked = false;
+            }
+            loadHabits();
+        });
+    }
+
+    // Проверка токена сброса пароля в URL
+    const hash = window.location.hash;
+    if (hash.startsWith('#reset-password')) {
+        const params = new URLSearchParams(hash.split('?')[1]);
+        const resetToken = params.get('token');
+        if (resetToken) {
+            showResetPassword(resetToken);
+        }
+    } else if (token) {
         showNav();
         loadHabits();
     }
@@ -480,6 +516,7 @@ async function checkReminders() {
         const notifyHourBefore = window.profileNotifyHourBefore;
 
         for (const habit of habits) {
+            if (habit.archived) continue;
             if (!habit.notificationsEnabled) continue;
             const freq = habit.frequency || 'DAILY';
             const val = habit.reminderTime || '';
@@ -620,7 +657,24 @@ function showRegister() {
 
 function showLogin() {
     document.getElementById('register-container').style.display = 'none';
+    document.getElementById('forgot-password-container').style.display = 'none';
+    document.getElementById('reset-password-container').style.display = 'none';
     document.querySelector('.auth-container').style.display = 'block';
+}
+
+function showForgotPassword() {
+    document.querySelector('.auth-container').style.display = 'none';
+    document.getElementById('register-container').style.display = 'none';
+    document.getElementById('reset-password-container').style.display = 'none';
+    document.getElementById('forgot-password-container').style.display = 'block';
+}
+
+function showResetPassword(token) {
+    document.querySelector('.auth-container').style.display = 'none';
+    document.getElementById('register-container').style.display = 'none';
+    document.getElementById('forgot-password-container').style.display = 'none';
+    document.getElementById('reset-password-container').style.display = 'block';
+    document.getElementById('reset-token').value = token;
 }
 
 function logout() {
@@ -661,8 +715,68 @@ async function loadProfile() {
 
         // Обновляем UI верификации email
         updateEmailVerificationUI(profile.emailVerified, profile.email);
+
+        // Сбрасываем вкладку достижений на DAILY
+        currentAchievementTab = 'DAILY';
+        document.querySelectorAll('.achievement-tab').forEach(b => b.classList.remove('active'));
+        const defaultTab = document.querySelector('.achievement-tab[data-tab="DAILY"]');
+        if (defaultTab) defaultTab.classList.add('active');
+        await loadAchievements();
     } catch (error) {
         showNotification('Ошибка загрузки профиля', 'error');
+    }
+}
+
+let currentAchievementTab = 'DAILY';
+
+function switchAchievementTab(frequency, btn) {
+    currentAchievementTab = frequency;
+    document.querySelectorAll('.achievement-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    loadAchievements();
+}
+
+async function loadAchievements() {
+    const container = document.getElementById('profile-achievements');
+    if (!container) return;
+
+    if (currentAchievementTab === 'INTERVAL') {
+        container.innerHTML = '<div class="empty-state">🏗 Достижения для интервальных привычек скоро появятся</div>';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/achievements?frequency=${currentAchievementTab}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Ошибка');
+        const achievements = await response.json();
+
+        if (achievements.length === 0) {
+            container.innerHTML = '<div class="empty-state">Нет достижений</div>';
+            return;
+        }
+
+        const unlockedCount = achievements.filter(a => a.unlocked).length;
+        let html = `<div style="margin-bottom: 12px; font-size: 0.9rem; color: #667eea; font-weight: 600;">🏆 ${unlockedCount} / ${achievements.length} разблокировано</div>`;
+        html += '<div class="achievements-grid">';
+        for (const a of achievements) {
+            const percent = Math.min(100, Math.round(a.progress * 100 / a.threshold));
+            const icon = a.unlocked ? '🏅' : '🔒';
+            html += `
+                <div class="achievement-card ${a.unlocked ? 'unlocked' : ''}">
+                    <div class="achievement-icon">${icon}</div>
+                    <div class="achievement-name">${a.name}</div>
+                    <div class="achievement-desc">${a.description}</div>
+                    <div class="achievement-progress"><div class="fill" style="width: ${percent}%"></div></div>
+                    <div class="achievement-progress-text">${a.progress} / ${a.threshold}${a.unlocked ? ' ✅' : ''}</div>
+                </div>
+            `;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (error) {
+        container.innerHTML = '<div style="color: #e74c3c; font-size: 0.9rem;">Ошибка загрузки достижений</div>';
     }
 }
 
@@ -839,7 +953,7 @@ async function verifyEmailCode() {
         });
         if (!response.ok) {
             const text = await response.text();
-            throw new Error(text || 'Неверный код');
+            throw new Error(extractServerError(text) || 'Неверный код');
         }
         showNotification('✅ Email подтверждён!', 'success');
         document.getElementById('profile-verification-code').value = '';
@@ -914,7 +1028,7 @@ async function sendTestEmail() {
         if (response.ok) {
             showNotification('📧 Тестовое письмо отправлено! Проверьте почту', 'success');
         } else {
-            showNotification('Ошибка: ' + text, 'error');
+            showNotification('Ошибка: ' + extractServerError(text), 'error');
         }
     } catch (error) {
         showNotification('Ошибка отправки: ' + error.message, 'error');
@@ -931,7 +1045,7 @@ async function triggerReminders() {
         if (response.ok) {
             showNotification('🚀 Рассылка запущена! Проверьте логи IDE', 'success');
         } else {
-            showNotification('Ошибка: ' + text, 'error');
+            showNotification('Ошибка: ' + extractServerError(text), 'error');
         }
     } catch (error) {
         showNotification('Ошибка запуска: ' + error.message, 'error');
@@ -1045,6 +1159,98 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
         showNotification('Ошибка регистрации. Возможно, имя или email уже заняты.', 'error');
     }
 });
+
+// Восстановление пароля
+document.getElementById('forgot-password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('forgot-email').value.trim();
+    try {
+        const response = await fetch(`${API_URL}/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        if (!response.ok) throw new Error('Ошибка');
+        showNotification('📩 Если email зарегистрирован, письмо отправлено', 'success');
+        showLogin();
+    } catch (error) {
+        showNotification('Ошибка отправки. Попробуйте позже.', 'error');
+    }
+});
+
+// Сброс пароля по токену
+document.getElementById('reset-password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const tokenReset = document.getElementById('reset-token').value;
+    const newPassword = document.getElementById('reset-new-password').value;
+    const confirmPassword = document.getElementById('reset-confirm-password').value;
+
+    if (newPassword !== confirmPassword) {
+        showNotification('Пароли не совпадают', 'error');
+        return;
+    }
+    if (newPassword.length < 6) {
+        showNotification('Пароль должен быть не менее 6 символов', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: tokenReset, newPassword })
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(extractServerError(text) || 'Ошибка');
+        }
+        showNotification('✅ Пароль изменён! Войдите с новым паролем.', 'success');
+        showLogin();
+    } catch (error) {
+        showNotification('Ошибка: ' + error.message, 'error');
+    }
+});
+
+// Смена пароля в профиле
+async function changePassword() {
+    const current = document.getElementById('profile-current-password').value;
+    const newPass = document.getElementById('profile-new-password').value;
+    const confirm = document.getElementById('profile-confirm-password').value;
+
+    if (!current || !newPass || !confirm) {
+        showNotification('Заполните все поля', 'error');
+        return;
+    }
+    if (newPass !== confirm) {
+        showNotification('Новые пароли не совпадают', 'error');
+        return;
+    }
+    if (newPass.length < 6) {
+        showNotification('Новый пароль должен быть не менее 6 символов', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/users/me/change-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ currentPassword: current, newPassword: newPass })
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(extractServerError(text) || 'Ошибка');
+        }
+        showNotification('🔐 Пароль успешно изменён', 'success');
+        document.getElementById('profile-current-password').value = '';
+        document.getElementById('profile-new-password').value = '';
+        document.getElementById('profile-confirm-password').value = '';
+    } catch (error) {
+        showNotification('Ошибка: ' + error.message, 'error');
+    }
+}
 
 // Создание привычки
 document.getElementById('habit-form').addEventListener('submit', async (e) => {
@@ -1171,6 +1377,7 @@ async function addHabitToList(habit) {
                 ${isMultiple ? '➕ Добавить выполнение' : '✓ Выполнено'}
             </button>
             <button class="edit" onclick="openEditModal(${habit.id})">✏️ Редактировать</button>
+            <button class="edit" onclick="archiveHabit(${habit.id})">📦 Архивировать</button>
             <button class="delete" onclick="deleteHabit(${habit.id})">🗑 Удалить</button>
         </div>
         <label class="notification-toggle ${notifActive}">
@@ -1205,9 +1412,14 @@ async function loadHabits(preserveScroll = false) {
         container.innerHTML = '<div class="loading">Загрузка...</div>';
     }
 
-    const filterSingle = document.getElementById('filter-single').checked;
-    const filterMultiple = document.getElementById('filter-multiple').checked;
-    const filterUpcoming = document.getElementById('filter-upcoming').checked;
+        const filterSingle = document.getElementById('filter-single').checked;
+        const filterMultiple = document.getElementById('filter-multiple').checked;
+        const filterUpcoming = document.getElementById('filter-upcoming').checked;
+        const showArchived = document.getElementById('filter-archived').checked;
+
+        // В архиве показываем все типы подряд
+        const effectiveFilterSingle = showArchived ? true : filterSingle;
+        const effectiveFilterMultiple = showArchived ? true : filterMultiple;
 
     try {
         const response = await fetch(`${API_URL}/habits`, {
@@ -1238,23 +1450,31 @@ async function loadHabits(preserveScroll = false) {
             return;
         }
 
-        // Фильтрация по типу
+        // Фильтрация по архиву и типу
         habits = habits.filter(h => {
-            if (h.habitType === 'SINGLE' && filterSingle) return true;
-            if (h.habitType === 'MULTIPLE' && filterMultiple) return true;
+            const isArchived = !!h.archived;
+            if (isArchived !== showArchived) return false;
+            if (h.habitType === 'SINGLE' && effectiveFilterSingle) return true;
+            if (h.habitType === 'MULTIPLE' && effectiveFilterMultiple) return true;
             return false;
         });
 
         // Фильтр "Ближайшие" — только невыполненные, отсортированные по времени
-        if (filterUpcoming) {
+        if (filterUpcoming && !showArchived) {
             habits = habits.filter(h => {
                 if (h.habitType === 'SINGLE') return !h.completedToday;
                 if (h.habitType === 'MULTIPLE') return (h.todayCompletions || 0) < (h.targetCount || 1);
                 return true;
             });
             habits.sort((a, b) => getUpcomingScore(a) - getUpcomingScore(b));
-        } else if (filterSingle && filterMultiple) {
-            habits.sort((a, b) => (b.totalCompletions || 0) - (a.totalCompletions || 0));
+        } else if (effectiveFilterSingle && effectiveFilterMultiple) {
+            // Сначала SINGLE, потом MULTIPLE (или наоборот — давайте сначала SINGLE)
+            habits.sort((a, b) => {
+                if (a.habitType !== b.habitType) {
+                    return a.habitType === 'SINGLE' ? -1 : 1;
+                }
+                return (b.totalCompletions || 0) - (a.totalCompletions || 0);
+            });
         }
 
         if (habits.length === 0) {
@@ -1267,8 +1487,9 @@ async function loadHabits(preserveScroll = false) {
         for (const habit of habits) {
             const card = document.createElement('div');
             const isMultiple = habit.habitType === 'MULTIPLE';
+            const isArchived = !!habit.archived;
             // Не используем habit.completedToday / habit.todayCompletions — вычислим на фронтенде
-            card.className = 'habit-card' + (isMultiple ? ' multiple' : '');
+            card.className = 'habit-card' + (isMultiple ? ' multiple' : '') + (isArchived ? ' archived' : '');
             card.id = `habit-card-${habit.id}`;
 
             const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} раз` : ' раз';
@@ -1305,6 +1526,7 @@ async function loadHabits(preserveScroll = false) {
                    </div>`;
 
             card.innerHTML = `
+                ${habit.archived ? '<div class="archived-overlay"><span>⏸ Приостановлено</span></div>' : ''}
                 <span class="category">${getCategoryName(habit.category)} ${isMultiple ? '🔁' : '☑️'}</span>
                 <h4>
                     <span class="checkmark">✓</span>
@@ -1315,17 +1537,20 @@ async function loadHabits(preserveScroll = false) {
                 <p>📅 ${getFrequencyName(habit.frequency)} · ${reminderLabel}</p>
                 ${statsHtml}
                 ${extraHtml}
+                ${!habit.archived ? `
                 <div class="actions">
                     <button class="complete ${isMultiple ? 'add-completion' : ''}" id="btn-complete-${habit.id}" onclick="handleComplete(${habit.id}, ${isMultiple}, event)">
                         ${isMultiple ? '➕ Добавить выполнение' : '✓ Выполнено'}
                     </button>
                     <button class="edit" onclick="openEditModal(${habit.id})">✏️ Редактировать</button>
+                    ${habit.archived ? `<button class="edit" onclick="unarchiveHabit(${habit.id})">📤 Разархивировать</button>` : `<button class="edit" onclick="archiveHabit(${habit.id})">📦 Архивировать</button>`}
                     <button class="delete" onclick="deleteHabit(${habit.id})">🗑 Удалить</button>
                 </div>
                 <label class="notification-toggle ${notifActive}">
                     <input type="checkbox" ${notifChecked} onchange="toggleNotifications(${habit.id}, this.checked)">
                     <span>🔔 ${habit.notificationsEnabled ? 'Уведомления вкл' : 'Уведомления выкл'}</span>
                 </label>
+                ` : ''}
             `;
             container.appendChild(card);
             habitsNeedingData.push(habit);
@@ -1336,6 +1561,7 @@ async function loadHabits(preserveScroll = false) {
 
         // Параллельная загрузка выполнений для всех видимых привычек
         await Promise.all(habitsNeedingData.map(async (habit) => {
+            if (habit.archived) return; // архивные не обновляем динамически
             const isMultiple = habit.habitType === 'MULTIPLE';
             const [todayComps, yesterdayComps] = await Promise.all([
                 fetchTodayCompletions(habit.id),
@@ -1774,7 +2000,8 @@ async function refreshHabitCard(habitId) {
 
         const wrapper = document.createElement('div');
         wrapper.innerHTML = `
-            <div class="habit-card${completedToday ? ' completed' : ''}${isMultiple ? ' multiple' : ''}" id="habit-card-${habit.id}">
+            <div class="habit-card${completedToday ? ' completed' : ''}${isMultiple ? ' multiple' : ''}${habit.archived ? ' archived' : ''}" id="habit-card-${habit.id}">
+                ${habit.archived ? '<div class="archived-overlay"><span>⏸ Приостановлено</span></div>' : ''}
                 <span class="category">${getCategoryName(habit.category)} ${isMultiple ? '🔁' : '☑️'}</span>
                 <h4>
                     <span class="checkmark">✓</span>
@@ -1786,17 +2013,20 @@ async function refreshHabitCard(habitId) {
                 <p>📅 ${getFrequencyName(habit.frequency)} · ${reminderLabel}</p>
                 ${statsHtml}
                 ${extraHtml}
+                ${!habit.archived ? `
                 <div class="actions">
                     <button class="complete ${isMultiple ? 'add-completion' : ''}" onclick="handleComplete(${habit.id}, ${isMultiple}, event)">
                         ${isMultiple ? '➕ Добавить выполнение' : (completedToday ? '↩ Отменить' : '✓ Выполнено')}
                     </button>
                     <button class="edit" onclick="openEditModal(${habit.id})">✏️ Редактировать</button>
+                    ${habit.archived ? `<button class="edit" onclick="unarchiveHabit(${habit.id})">📤 Разархивировать</button>` : `<button class="edit" onclick="archiveHabit(${habit.id})">📦 Архивировать</button>`}
                     <button class="delete" onclick="deleteHabit(${habit.id})">🗑 Удалить</button>
                 </div>
                 <label class="notification-toggle ${notifActive}">
                     <input type="checkbox" ${notifChecked} onchange="toggleNotifications(${habit.id}, this.checked)">
                     <span>🔔 ${habit.notificationsEnabled ? 'Уведомления вкл' : 'Уведомления выкл'}</span>
                 </label>
+                ` : ''}
             </div>
         `;
         const newCard = wrapper.firstElementChild;
@@ -1906,6 +2136,36 @@ async function removeCompletion(completionId, habitId, event) {
         await refreshHabitCard(habitId);
     } catch (error) {
         showNotification('Ошибка удаления', 'error');
+    }
+}
+
+// Архивирование привычки
+async function archiveHabit(habitId) {
+    try {
+        const response = await fetch(`${API_URL}/habits/${habitId}/archive`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Ошибка');
+        showNotification('Привычка архивирована', 'info');
+        await loadHabits(true);
+    } catch (error) {
+        showNotification('Ошибка архивирования', 'error');
+    }
+}
+
+// Разархивирование привычки
+async function unarchiveHabit(habitId) {
+    try {
+        const response = await fetch(`${API_URL}/habits/${habitId}/unarchive`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Ошибка');
+        showNotification('Привычка восстановлена из архива', 'success');
+        await loadHabits(true);
+    } catch (error) {
+        showNotification('Ошибка разархивирования', 'error');
     }
 }
 
@@ -2480,6 +2740,20 @@ async function loadHabitAnalytics() {
                 </div>
                 <p style="text-align: center; margin-top: 10px; color: #666;">Прогресс за последние 30 дней</p>
 
+                <div class="heatmap-container">
+                    <h4>🔥 Активность за год</h4>
+                    <div id="heatmap-${habitId}" class="heatmap"></div>
+                    <div class="heatmap-legend">
+                        <span>Меньше</span>
+                        <div class="legend-box" style="background: #ebedf0;"></div>
+                        <div class="legend-box" style="background: #c6e48b;"></div>
+                        <div class="legend-box" style="background: #7bc96f;"></div>
+                        <div class="legend-box" style="background: #239a3b;"></div>
+                        <div class="legend-box" style="background: #196127;"></div>
+                        <span>Больше</span>
+                    </div>
+                </div>
+
                 <div class="charts-row">
                     <div class="chart-card">
                         <h4>📅 Динамика выполнения</h4>
@@ -2499,6 +2773,68 @@ async function loadHabitAnalytics() {
                 ${daysListHtml}
             </div>
         `;
+
+        // === Heatmap ===
+        const heatmapEl = document.getElementById(`heatmap-${habitId}`);
+        if (heatmapEl) {
+            const heatmapDays = 365;
+            const heatmapCounts = {};
+            for (let i = 0; i < heatmapDays; i++) {
+                const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+                heatmapCounts[toLocalIso(d)] = 0;
+            }
+            historyCompletions.forEach(c => {
+                if (heatmapCounts[c.completedDate] !== undefined) {
+                    heatmapCounts[c.completedDate]++;
+                }
+            });
+
+            const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+            const weeks = [];
+            let currentWeek = [];
+            const startOfYear = new Date(Date.now() - (heatmapDays - 1) * 24 * 60 * 60 * 1000);
+            const startDow = (startOfYear.getDay() + 6) % 7; // 0=Пн
+            for (let i = 0; i < startDow; i++) currentWeek.push(null);
+
+            for (let i = heatmapDays - 1; i >= 0; i--) {
+                const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+                const iso = toLocalIso(d);
+                currentWeek.push({ iso, count: heatmapCounts[iso] || 0, date: d });
+                if (currentWeek.length === 7) {
+                    weeks.push(currentWeek);
+                    currentWeek = [];
+                }
+            }
+            if (currentWeek.length > 0) {
+                while (currentWeek.length < 7) currentWeek.push(null);
+                weeks.push(currentWeek);
+            }
+
+            let heatmapHtml = '';
+            for (let dow = 0; dow < 7; dow++) {
+                heatmapHtml += '<div class="heatmap-col">';
+                for (const week of weeks) {
+                    const day = week[dow];
+                    if (!day) {
+                        heatmapHtml += '<div class="heatmap-cell" style="background: transparent;"></div>';
+                    } else {
+                        let level = 0;
+                        if (isMultiple) {
+                            if (day.count >= 4) level = 4;
+                            else if (day.count >= 3) level = 3;
+                            else if (day.count >= 2) level = 2;
+                            else if (day.count >= 1) level = 1;
+                        } else {
+                            level = day.count > 0 ? 4 : 0;
+                        }
+                        const title = `${day.date.toLocaleDateString('ru-RU')}: ${day.count} выполнени${day.count === 1 ? 'е' : (day.count < 5 ? 'я' : 'й')}`;
+                        heatmapHtml += `<div class="heatmap-cell${level > 0 ? ' level-' + level : ''}" title="${title}"></div>`;
+                    }
+                }
+                heatmapHtml += '</div>';
+            }
+            heatmapEl.innerHTML = heatmapHtml;
+        }
 
         // === График динамики ===
         const dailyCtx = document.getElementById('dailyChart').getContext('2d');

@@ -38,7 +38,28 @@
                     <input type="password" id="login-password" placeholder="Пароль" required>
                     <button type="submit">Войти</button>
                 </form>
+                <p style="margin-top: 10px; font-size: 0.85rem;"><a href="#" onclick="showForgotPassword()">🔑 Забыли пароль?</a></p>
                 <p>Нет аккаунта? <a href="#" onclick="showRegister()">Зарегистрироваться</a></p>
+            </div>
+
+            <div class="auth-container" id="forgot-password-container" style="display: none;">
+                <h2>Восстановление пароля</h2>
+                <form id="forgot-password-form">
+                    <input type="email" id="forgot-email" placeholder="Ваш email" required>
+                    <button type="submit">Отправить ссылку</button>
+                </form>
+                <p><a href="#" onclick="showLogin()">← Назад к входу</a></p>
+            </div>
+
+            <div class="auth-container" id="reset-password-container" style="display: none;">
+                <h2>Новый пароль</h2>
+                <form id="reset-password-form">
+                    <input type="hidden" id="reset-token">
+                    <input type="password" id="reset-new-password" placeholder="Новый пароль (мин. 6 символов)" required minlength="6">
+                    <input type="password" id="reset-confirm-password" placeholder="Повторите пароль" required minlength="6">
+                    <button type="submit">Сохранить пароль</button>
+                </form>
+                <p><a href="#" onclick="showLogin()">← Назад к входу</a></p>
             </div>
 
             <div class="auth-container" id="register-container" style="display: none;">
@@ -133,6 +154,10 @@
                     <input type="checkbox" id="filter-upcoming" onchange="loadHabits()">
                     <span>⏰ Ближайшие</span>
                 </label>
+                <label class="filter-toggle" style="margin-left: auto;">
+                    <input type="checkbox" id="filter-archived">
+                    <span>📦 Архив</span>
+                </label>
             </div>
             <div id="habits-list"></div>
         </section>
@@ -173,7 +198,7 @@
                         <div id="email-verification-block" style="display: none; margin-top: 10px; padding: 12px; background: #f8f9ff; border-radius: 8px; border: 1px solid #e0e0ff;">
                             <p style="font-size: 0.85rem; color: #555; margin-bottom: 8px;">📩 Введите 6-значный код из письма:</p>
                             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                                <input type="text" id="profile-verification-code" maxlength="6" placeholder="000000" style="width: 100px; text-align: center; letter-spacing: 4px; font-size: 1.1rem; padding: 8px; border: 1px solid #ccc; border-radius: 6px;">
+                                <input type="text" id="profile-verification-code" maxlength="6" placeholder="123456" style="width: 150px; text-align: center; letter-spacing: 6px; font-size: 1.2rem; padding: 8px; border: 1px solid #ccc; border-radius: 6px;">
                                 <button class="btn-save" style="background: #28a745;" onclick="verifyEmailCode()">✅ Подтвердить</button>
                                 <button class="btn-cancel" id="btn-resend-code" style="padding: 8px 14px; font-size: 0.85rem;" onclick="sendVerificationCode()">🔄 Отправить код</button>
                             </div>
@@ -200,6 +225,15 @@
                             </div>
                         </details>
                     </div>
+                    <div class="profile-field" style="background: #fff8f0; border: 1px solid #f39c12; border-radius: 8px; padding: 15px; margin-top: 15px;">
+                        <label>🔐 Смена пароля</label>
+                        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                            <input type="password" id="profile-current-password" placeholder="Текущий пароль" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            <input type="password" id="profile-new-password" placeholder="Новый пароль (мин. 6 символов)" minlength="6" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            <input type="password" id="profile-confirm-password" placeholder="Повторите новый пароль" minlength="6" style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            <button class="btn-save" style="background: #f39c12;" onclick="changePassword()">🔐 Сменить пароль</button>
+                        </div>
+                    </div>
                     <div class="profile-field email-test-section" style="background: #f0f8ff; border: 1px solid #667eea; border-radius: 8px; padding: 15px; margin-top: 15px;">
                         <label>🧪 Тестирование email</label>
                         <p style="font-size: 0.85rem; color: #666; margin: 8px 0;">Отправьте тестовое письмо, чтобы проверить настройки</p>
@@ -209,6 +243,18 @@
                     <div class="profile-field">
                         <label>Дата регистрации</label>
                         <div id="profile-created" class="profile-value">—</div>
+                    </div>
+                    <div class="profile-field">
+                        <label>🏆 Достижения</label>
+                        <div class="achievement-tabs">
+                            <button class="achievement-tab active" data-tab="DAILY" onclick="switchAchievementTab('DAILY', this)">📅 Ежедневные</button>
+                            <button class="achievement-tab" data-tab="WEEKLY" onclick="switchAchievementTab('WEEKLY', this)">📆 Еженедельные</button>
+                            <button class="achievement-tab" data-tab="MONTHLY" onclick="switchAchievementTab('MONTHLY', this)">📅 Ежемесячные</button>
+                            <button class="achievement-tab" data-tab="INTERVAL" onclick="switchAchievementTab('INTERVAL', this)">⏱️ Интервалы</button>
+                        </div>
+                        <div id="profile-achievements" style="margin-top: 10px;">
+                            <div class="loading">Загрузка достижений...</div>
+                        </div>
                     </div>
                     <div class="profile-field">
                         <label>Статистика</label>
@@ -225,7 +271,7 @@
                     </div>
                 </div>
                 <div class="profile-danger">
-                    <h4>⚠️ Опасная зона</h4>
+                    <h4>⚠️Сброс профиля</h4>
                     <p>Это действие удалит ВСЕ ваши привычки и всю статистику безвозвратно.</p>
                     <button class="btn-reset" onclick="openResetProfileModal()">🗑️ Полный сброс профиля</button>
                 </div>

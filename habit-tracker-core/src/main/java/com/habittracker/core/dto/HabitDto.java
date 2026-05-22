@@ -18,6 +18,7 @@ public record HabitDto(
     String reminderHour,
     Integer intervalMinutes,
     Boolean notificationsEnabled,
+    Boolean archived,
     LocalDateTime createdAt,
     Long totalCompletions,
     Long todayCompletions,

@@ -17,10 +17,12 @@ import java.util.List;
 public class HabitService {
     private final HabitRepository habitRepository;
     private final HabitCompletionService completionService;
+    private final AchievementService achievementService;
 
-    public HabitService(HabitRepository habitRepository, HabitCompletionService completionService) {
+    public HabitService(HabitRepository habitRepository, HabitCompletionService completionService, AchievementService achievementService) {
         this.habitRepository = habitRepository;
         this.completionService = completionService;
+        this.achievementService = achievementService;
     }
 
     public HabitDto createHabit(CreateHabitRequest request, User user) {
@@ -35,8 +37,11 @@ public class HabitService {
         habit.setReminderHour(request.reminderHour());
         habit.setIntervalMinutes(request.intervalMinutes());
         habit.setNotificationsEnabled(request.notificationsEnabled() != null ? request.notificationsEnabled() : false);
+        habit.setArchived(request.archived() != null ? request.archived() : false);
         habit.setUser(user);
-        return toDto(habitRepository.save(habit));
+        HabitDto dto = toDto(habitRepository.save(habit));
+        achievementService.checkAndAward(user, request.frequency());
+        return dto;
     }
 
     public List<HabitDto> getAllHabits(User user) {
@@ -70,12 +75,25 @@ public class HabitService {
         habit.setReminderHour(request.reminderHour());
         habit.setIntervalMinutes(request.intervalMinutes());
         habit.setNotificationsEnabled(request.notificationsEnabled() != null ? request.notificationsEnabled() : habit.getNotificationsEnabled());
+        habit.setArchived(request.archived() != null ? request.archived() : habit.getArchived());
         return toDto(habitRepository.save(habit));
     }
 
     public void deleteHabit(Long id, User user) {
         Habit habit = findHabitEntityById(id, user);
         habitRepository.delete(habit);
+    }
+
+    public HabitDto archiveHabit(Long id, User user) {
+        Habit habit = findHabitEntityById(id, user);
+        habit.setArchived(true);
+        return toDto(habitRepository.save(habit));
+    }
+
+    public HabitDto unarchiveHabit(Long id, User user) {
+        Habit habit = findHabitEntityById(id, user);
+        habit.setArchived(false);
+        return toDto(habitRepository.save(habit));
     }
 
     public HabitDto toDto(Habit habit) {
@@ -94,6 +112,7 @@ public class HabitService {
                 habit.getReminderHour(),
                 habit.getIntervalMinutes(),
                 habit.getNotificationsEnabled(),
+                habit.getArchived(),
                 habit.getCreatedAt(),
                 totalCompletions,
                 todayCompletions,

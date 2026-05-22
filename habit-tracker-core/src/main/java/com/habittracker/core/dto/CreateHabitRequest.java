@@ -16,5 +16,6 @@ public record CreateHabitRequest(
     String reminderTime,
     String reminderHour,
     Integer intervalMinutes,
-    Boolean notificationsEnabled
+    Boolean notificationsEnabled,
+    Boolean archived
 ) {}
