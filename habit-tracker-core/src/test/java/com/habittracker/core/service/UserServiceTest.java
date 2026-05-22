@@ -35,11 +35,11 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(passwordEncoder.encode(any())).thenReturn("encoded");
     }
 
     @Test
     void register_shouldCreateUser() {
+        when(passwordEncoder.encode(any())).thenReturn("encoded");
         when(userRepository.existsByUsername("testuser")).thenReturn(false);
         when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));

@@ -17,10 +17,14 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final String fromEmail;
+    private final String baseUrl;
 
-    public EmailService(JavaMailSender mailSender, @Value("${spring.mail.username}") String fromEmail) {
+    public EmailService(JavaMailSender mailSender,
+                        @Value("${spring.mail.username}") String fromEmail,
+                        @Value("${app.base-url}") String baseUrl) {
         this.mailSender = mailSender;
         this.fromEmail = fromEmail;
+        this.baseUrl = baseUrl;
     }
 
     @Async
@@ -117,7 +121,7 @@ public class EmailService {
                         <p class="habit-description">{{HABIT_DESC}}</p>
                         <p>Не забудьте отметить выполнение этой привычки сегодня!</p>
                         <p style="text-align: center; margin-top: 25px;">
-                            <a href="http://localhost:8080" class="button">Отметить выполнение</a>
+                            <a href="{{BASE_URL}}" class="button">Отметить выполнение</a>
                         </p>
                         <div class="footer">
                             <p>Это письмо отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
@@ -129,6 +133,7 @@ public class EmailService {
             </html>
             """;
         return template
+            .replace("{{BASE_URL}}", baseUrl)
             .replace("{{HABIT_NAME}}", escapeHtml(habitName))
             .replace("{{HABIT_DESC}}", escapeHtml(habitDescription != null ? habitDescription : "Без описания"));
     }
@@ -161,7 +166,7 @@ public class EmailService {
                         <p class="habit-description">{{HABIT_DESC}}</p>
                         <p>Остался всего час! Не забудьте подготовиться.</p>
                         <p style="text-align: center; margin-top: 25px;">
-                            <a href="http://localhost:8080" class="button">Отметить выполнение</a>
+                            <a href="{{BASE_URL}}" class="button">Отметить выполнение</a>
                         </p>
                         <div class="footer">
                             <p>Это письмо отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
@@ -173,6 +178,7 @@ public class EmailService {
             </html>
             """;
         return template
+            .replace("{{BASE_URL}}", baseUrl)
             .replace("{{HABIT_NAME}}", escapeHtml(habitName))
             .replace("{{HABIT_DESC}}", escapeHtml(habitDescription != null ? habitDescription : "Без описания"));
     }
@@ -225,7 +231,7 @@ public class EmailService {
                         <p>Вы запросили сброс пароля для аккаунта Habit Tracker.</p>
                         <p>Нажмите на кнопку ниже, чтобы создать новый пароль:</p>
                         <p style="margin: 25px 0;">
-                            <a href="http://localhost:8080/#reset-password?token={{TOKEN}}" class="button">Сбросить пароль</a>
+                            <a href="{{BASE_URL}}/#reset-password?token={{TOKEN}}" class="button">Сбросить пароль</a>
                         </p>
                         <p style="color: #888; font-size: 14px;">Ссылка действительна в течение 1 часа.<br>Если вы не запрашивали сброс — проигнорируйте это письмо.</p>
                     </div>
@@ -236,7 +242,9 @@ public class EmailService {
             </body>
             </html>
             """;
-        return template.replace("{{TOKEN}}", escapeHtml(token));
+        return template
+            .replace("{{BASE_URL}}", baseUrl)
+            .replace("{{TOKEN}}", escapeHtml(token));
     }
 
     private String buildVerificationCodeHtml(String code) {
