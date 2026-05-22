@@ -65,7 +65,7 @@
             <div class="auth-container" id="register-container" style="display: none;">
                 <h2>Регистрация</h2>
                 <form id="register-form">
-                    <input type="text" id="reg-username" placeholder="Имя пользователя (от 3 символов)" required minlength="3">
+                    <input type="text" id="reg-username" placeholder="Имя пользователя (от 6 символов)" required minlength="3">
                     <input type="email" id="reg-email" placeholder="Email" required>
                     <input type="password" id="reg-password" placeholder="Пароль (мин. 6 символов)" required minlength="6">
                     <button type="submit">Зарегистрироваться</button>
@@ -191,8 +191,9 @@
                     <div class="profile-field">
                         <label>Email</label>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                            <input type="email" id="profile-email-input" class="profile-input" placeholder="Ваш email" style="flex: 1; min-width: 200px;">
-                            <button class="btn-save" onclick="saveProfileEmail()">💾 Сохранить</button>
+                            <input type="email" id="profile-email-input" class="profile-input" placeholder="Ваш email" style="flex: 1; min-width: 200px;" readonly>
+                            <button class="btn-save" id="btn-edit-email" onclick="editProfileEmail()">✏️ Изменить</button>
+                            <button class="btn-save" id="btn-save-email" onclick="saveProfileEmail()" style="display: none;">💾 Сохранить</button>
                         </div>
                         <div id="email-verification-status" style="margin-top: 8px; font-size: 0.85rem;"></div>
                         <div id="email-verification-block" style="display: none; margin-top: 10px; padding: 12px; background: #f8f9ff; border-radius: 8px; border: 1px solid #e0e0ff;">

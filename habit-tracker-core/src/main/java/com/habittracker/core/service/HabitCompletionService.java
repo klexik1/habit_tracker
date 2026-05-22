@@ -8,6 +8,7 @@ import com.habittracker.core.entity.User;
 import com.habittracker.core.exception.NotFoundException;
 import com.habittracker.core.repository.HabitCompletionRepository;
 import com.habittracker.core.repository.HabitRepository;
+import com.habittracker.core.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
@@ -24,11 +25,14 @@ public class HabitCompletionService {
     private final HabitCompletionRepository completionRepository;
     private final HabitRepository habitRepository;
     private final AchievementService achievementService;
+    private final UserRepository userRepository;
 
-    public HabitCompletionService(HabitCompletionRepository completionRepository, HabitRepository habitRepository, AchievementService achievementService) {
+    public HabitCompletionService(HabitCompletionRepository completionRepository, HabitRepository habitRepository,
+                                  AchievementService achievementService, UserRepository userRepository) {
         this.completionRepository = completionRepository;
         this.habitRepository = habitRepository;
         this.achievementService = achievementService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -54,6 +58,8 @@ public class HabitCompletionService {
             completion.setCompleted(true);
             completion.setNote("Выполнено в " + completion.getCompletedAt().toLocalTime().withSecond(0).withNano(0));
             HabitCompletion saved = completionRepository.save(completion);
+            user.setLifetimeCompletionCount((user.getLifetimeCompletionCount() != null ? user.getLifetimeCompletionCount() : 0) + 1);
+            userRepository.save(user);
             achievementService.checkAndAward(user, habit.getFrequency());
             return toDto(saved);
         } else {
@@ -79,6 +85,8 @@ public class HabitCompletionService {
 
             HabitCompletion saved = completionRepository.save(completion);
             if (saved.isCompleted()) {
+                user.setLifetimeCompletionCount((user.getLifetimeCompletionCount() != null ? user.getLifetimeCompletionCount() : 0) + 1);
+                userRepository.save(user);
                 achievementService.checkAndAward(user, habit.getFrequency());
             }
             return toDto(saved);

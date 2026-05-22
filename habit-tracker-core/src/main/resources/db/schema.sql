@@ -16,6 +16,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_code VARCHAR(6);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMP;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(64);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS lifetime_habit_count INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS lifetime_completion_count INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS lifetime_best_streak INTEGER DEFAULT 0;
 
 -- Achievements table
 CREATE TABLE IF NOT EXISTS achievements (

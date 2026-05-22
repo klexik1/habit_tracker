@@ -11,4 +11,5 @@ import java.util.List;
 public interface AchievementRepository extends JpaRepository<Achievement, Long> {
     List<Achievement> findByUserId(Long userId);
     boolean existsByUserIdAndType(Long userId, AchievementType type);
+    void deleteByUserId(Long userId);
 }

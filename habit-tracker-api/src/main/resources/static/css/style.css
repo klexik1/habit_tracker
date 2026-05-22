@@ -514,6 +514,7 @@ section h2 {
     border-radius: 5px;
     border: 1px solid #ddd;
     user-select: none;
+    margin-top: 10px;
 }
 
 .habit-card .notification-toggle input {
@@ -1242,6 +1243,30 @@ section h2 {
     pointer-events: none;
 }
 
+.habit-card .archived-name {
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    font-size: 1.1rem;
+    color: #e65100;
+    z-index: 11;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+    border: 1px solid #ffcc80;
+    padding: 6px 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(230, 81, 0, 0.15);
+    max-width: 80%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.habit-card.archived .actions {
+    position: relative;
+    z-index: 20;
+}
+
 .habit-card .archived-overlay span {
     background: linear-gradient(135deg, #f39c12, #e67e22);
     color: white;
@@ -1367,9 +1392,10 @@ section h2 {
 
 .heatmap {
     display: flex;
+    flex-direction: row;
     gap: 3px;
-    justify-content: center;
-    min-width: 600px;
+    justify-content: flex-start;
+    min-width: auto;
 }
 
 .heatmap-col {

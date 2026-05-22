@@ -3,6 +3,7 @@ package com.habittracker.core.service;
 import com.habittracker.core.dto.RegisterRequest;
 import com.habittracker.core.entity.User;
 import com.habittracker.core.exception.BadRequestException;
+import com.habittracker.core.repository.AchievementRepository;
 import com.habittracker.core.repository.HabitCompletionRepository;
 import com.habittracker.core.repository.HabitRepository;
 import com.habittracker.core.repository.UserRepository;
@@ -26,6 +27,7 @@ class UserServiceTest {
     @Mock UserRepository userRepository;
     @Mock HabitRepository habitRepository;
     @Mock HabitCompletionRepository completionRepository;
+    @Mock AchievementRepository achievementRepository;
     @Mock PasswordEncoder passwordEncoder;
 
     @InjectMocks
@@ -65,12 +67,24 @@ class UserServiceTest {
         User user = new User();
         user.setPassword("oldEncoded");
         when(passwordEncoder.matches("oldpass", "oldEncoded")).thenReturn(true);
+        when(passwordEncoder.matches("newpass123", "oldEncoded")).thenReturn(false);
         when(passwordEncoder.encode("newpass123")).thenReturn("newEncoded");
 
         userService.changePassword(user, "oldpass", "newpass123");
 
         assertThat(user.getPassword()).isEqualTo("newEncoded");
         verify(userRepository).save(user);
+    }
+
+    @Test
+    void changePassword_shouldThrowWhenSamePassword() {
+        User user = new User();
+        user.setPassword("oldEncoded");
+        when(passwordEncoder.matches("oldpass", "oldEncoded")).thenReturn(true);
+
+        assertThatThrownBy(() -> userService.changePassword(user, "oldpass", "oldpass"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Новый пароль должен отличаться от текущего");
     }
 
     @Test

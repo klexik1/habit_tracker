@@ -46,6 +46,15 @@ public class User {
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "lifetime_habit_count")
+    private Integer lifetimeHabitCount = 0;
+
+    @Column(name = "lifetime_completion_count")
+    private Integer lifetimeCompletionCount = 0;
+
+    @Column(name = "lifetime_best_streak")
+    private Integer lifetimeBestStreak = 0;
+
     public User() {}
 
     public Long getId() { return id; }
@@ -86,4 +95,13 @@ public class User {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public Integer getLifetimeHabitCount() { return lifetimeHabitCount; }
+    public void setLifetimeHabitCount(Integer lifetimeHabitCount) { this.lifetimeHabitCount = lifetimeHabitCount; }
+
+    public Integer getLifetimeCompletionCount() { return lifetimeCompletionCount; }
+    public void setLifetimeCompletionCount(Integer lifetimeCompletionCount) { this.lifetimeCompletionCount = lifetimeCompletionCount; }
+
+    public Integer getLifetimeBestStreak() { return lifetimeBestStreak; }
+    public void setLifetimeBestStreak(Integer lifetimeBestStreak) { this.lifetimeBestStreak = lifetimeBestStreak; }
 }

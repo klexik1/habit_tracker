@@ -9,6 +9,7 @@ import com.habittracker.core.entity.User;
 import com.habittracker.core.repository.AchievementRepository;
 import com.habittracker.core.repository.HabitCompletionRepository;
 import com.habittracker.core.repository.HabitRepository;
+import com.habittracker.core.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,13 +22,16 @@ public class AchievementService {
     private final AchievementRepository achievementRepository;
     private final HabitRepository habitRepository;
     private final HabitCompletionRepository completionRepository;
+    private final UserRepository userRepository;
 
     public AchievementService(AchievementRepository achievementRepository,
                               HabitRepository habitRepository,
-                              HabitCompletionRepository completionRepository) {
+                              HabitCompletionRepository completionRepository,
+                              UserRepository userRepository) {
         this.achievementRepository = achievementRepository;
         this.habitRepository = habitRepository;
         this.completionRepository = completionRepository;
+        this.userRepository = userRepository;
     }
 
     public List<Achievement> getUserAchievements(User user) {
@@ -47,14 +51,8 @@ public class AchievementService {
                 .filter(h -> h.getFrequency() == frequency)
                 .toList();
         long habitCount = habits.size();
-        long completionsSum = 0;
-        int bestStreak = 0;
-        for (Habit h : habits) {
-            completionsSum += completionRepository.countCompletedByHabitAndPeriod(
-                    h.getId(), java.time.LocalDate.of(2000, 1, 1), java.time.LocalDate.now());
-            int streak = calculateLongestStreak(h.getId());
-            if (streak > bestStreak) bestStreak = streak;
-        }
+        long completionsSum = user.getLifetimeCompletionCount() != null ? user.getLifetimeCompletionCount() : 0;
+        int bestStreak = user.getLifetimeBestStreak() != null ? user.getLifetimeBestStreak() : 0;
 
         List<AchievementDto> result = new ArrayList<>();
         for (AchievementType type : AchievementType.values()) {
@@ -91,14 +89,20 @@ public class AchievementService {
                 .toList();
         long habitCount = habits.size();
 
-        long completionsSum = 0;
-        int bestStreak = 0;
+        int currentBestStreak = 0;
         for (Habit h : habits) {
-            completionsSum += completionRepository.countCompletedByHabitAndPeriod(
-                    h.getId(), java.time.LocalDate.of(2000, 1, 1), java.time.LocalDate.now());
             int streak = calculateLongestStreak(h.getId());
-            if (streak > bestStreak) bestStreak = streak;
+            if (streak > currentBestStreak) currentBestStreak = streak;
         }
+
+        int lifetimeBest = user.getLifetimeBestStreak() != null ? user.getLifetimeBestStreak() : 0;
+        if (currentBestStreak > lifetimeBest) {
+            user.setLifetimeBestStreak(currentBestStreak);
+            userRepository.save(user);
+        }
+
+        long completionsSum = user.getLifetimeCompletionCount() != null ? user.getLifetimeCompletionCount() : 0;
+        int bestStreak = Math.max(lifetimeBest, currentBestStreak);
 
         awardIfNotExists(user, AchievementType.FIRST_HABIT, habitCount >= 1);
         awardIfNotExists(user, AchievementType.HABITS_5, habitCount >= 5);

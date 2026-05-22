@@ -5,6 +5,7 @@ import com.habittracker.core.dto.RegisterRequest;
 import com.habittracker.core.entity.Habit;
 import com.habittracker.core.entity.User;
 import com.habittracker.core.exception.BadRequestException;
+import com.habittracker.core.repository.AchievementRepository;
 import com.habittracker.core.repository.HabitCompletionRepository;
 import com.habittracker.core.repository.HabitRepository;
 import com.habittracker.core.repository.UserRepository;
@@ -20,13 +21,16 @@ public class UserService {
     private final UserRepository userRepository;
     private final HabitRepository habitRepository;
     private final HabitCompletionRepository completionRepository;
+    private final AchievementRepository achievementRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepository userRepository, HabitRepository habitRepository,
-                       HabitCompletionRepository completionRepository, PasswordEncoder passwordEncoder) {
+                       HabitCompletionRepository completionRepository,
+                       AchievementRepository achievementRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.habitRepository = habitRepository;
         this.completionRepository = completionRepository;
+        this.achievementRepository = achievementRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -82,7 +86,7 @@ public class UserService {
             throw new BadRequestException("Email не может быть пустым");
         }
         if (!email.equals(user.getEmail()) && userRepository.existsByEmail(email)) {
-            throw new BadRequestException("Email already exists");
+            throw new BadRequestException("Этот email уже используется другим аккаунтом");
         }
         boolean changed = !email.equals(user.getEmail());
         user.setEmail(email);
@@ -137,6 +141,11 @@ public class UserService {
         }
         List<Habit> habits = habitRepository.findByUserId(user.getId());
         habitRepository.deleteAll(habits);
+        achievementRepository.deleteByUserId(user.getId());
+        user.setLifetimeHabitCount(0);
+        user.setLifetimeCompletionCount(0);
+        user.setLifetimeBestStreak(0);
+        userRepository.save(user);
     }
 
     public String generateResetToken(String email) {
@@ -182,6 +191,9 @@ public class UserService {
         }
         if (newPassword == null || newPassword.length() < 6) {
             throw new BadRequestException("Новый пароль должен быть не менее 6 символов");
+        }
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new BadRequestException("Новый пароль должен отличаться от текущего");
         }
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);

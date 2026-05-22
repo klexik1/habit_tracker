@@ -7,6 +7,7 @@ import com.habittracker.core.entity.Habit;
 import com.habittracker.core.entity.HabitType;
 import com.habittracker.core.entity.User;
 import com.habittracker.core.repository.HabitRepository;
+import com.habittracker.core.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,7 @@ class HabitServiceTest {
     @Mock HabitRepository habitRepository;
     @Mock HabitCompletionService completionService;
     @Mock AchievementService achievementService;
+    @Mock UserRepository userRepository;
 
     @InjectMocks
     HabitService habitService;

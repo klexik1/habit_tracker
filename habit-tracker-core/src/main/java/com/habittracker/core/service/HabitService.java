@@ -7,6 +7,7 @@ import com.habittracker.core.entity.HabitType;
 import com.habittracker.core.entity.User;
 import com.habittracker.core.exception.NotFoundException;
 import com.habittracker.core.repository.HabitRepository;
+import com.habittracker.core.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +19,14 @@ public class HabitService {
     private final HabitRepository habitRepository;
     private final HabitCompletionService completionService;
     private final AchievementService achievementService;
+    private final UserRepository userRepository;
 
-    public HabitService(HabitRepository habitRepository, HabitCompletionService completionService, AchievementService achievementService) {
+    public HabitService(HabitRepository habitRepository, HabitCompletionService completionService,
+                        AchievementService achievementService, UserRepository userRepository) {
         this.habitRepository = habitRepository;
         this.completionService = completionService;
         this.achievementService = achievementService;
+        this.userRepository = userRepository;
     }
 
     public HabitDto createHabit(CreateHabitRequest request, User user) {
@@ -39,6 +43,8 @@ public class HabitService {
         habit.setNotificationsEnabled(request.notificationsEnabled() != null ? request.notificationsEnabled() : false);
         habit.setArchived(request.archived() != null ? request.archived() : false);
         habit.setUser(user);
+        user.setLifetimeHabitCount((user.getLifetimeHabitCount() != null ? user.getLifetimeHabitCount() : 0) + 1);
+        userRepository.save(user);
         HabitDto dto = toDto(habitRepository.save(habit));
         achievementService.checkAndAward(user, request.frequency());
         return dto;

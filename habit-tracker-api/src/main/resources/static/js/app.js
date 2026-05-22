@@ -824,6 +824,10 @@ async function startEmailVerification() {
         showNotification('Сначала укажите и сохраните email', 'error');
         return;
     }
+    if (email !== window._profileEmail) {
+        showNotification('Сначала сохраните изменения email', 'error');
+        return;
+    }
     window._emailVerificationOpened = true;
     const blockEl = document.getElementById('email-verification-block');
     if (blockEl) blockEl.style.display = 'block';
@@ -851,6 +855,14 @@ function syncResendButtonState() {
     }
 }
 
+function editProfileEmail() {
+    const input = document.getElementById('profile-email-input');
+    input.removeAttribute('readonly');
+    input.focus();
+    document.getElementById('btn-edit-email').style.display = 'none';
+    document.getElementById('btn-save-email').style.display = 'inline-block';
+}
+
 async function saveProfileEmail() {
     const email = document.getElementById('profile-email-input').value.trim();
     if (!email) {
@@ -874,8 +886,15 @@ async function saveProfileEmail() {
             body: JSON.stringify({ email })
         });
 
-        if (!response.ok) throw new Error('Ошибка');
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(extractServerError(text) || 'Ошибка');
+        }
         const changed = email !== window._profileEmail;
+        const input = document.getElementById('profile-email-input');
+        input.setAttribute('readonly', 'true');
+        document.getElementById('btn-edit-email').style.display = 'inline-block';
+        document.getElementById('btn-save-email').style.display = 'none';
         if (changed) {
             showNotification('Email обновлён! Теперь отправьте код подтверждения.', 'success');
             window.profileEmailVerified = false;
@@ -886,7 +905,7 @@ async function saveProfileEmail() {
             showNotification('Email сохранён', 'success');
         }
     } catch (error) {
-        showNotification('Ошибка обновления email', 'error');
+        showNotification('Ошибка: ' + error.message, 'error');
     }
 }
 
@@ -1133,8 +1152,8 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     const email = document.getElementById('reg-email').value;
     const password = document.getElementById('reg-password').value;
 
-    if (username.length < 3) {
-        showNotification('Имя пользователя должно быть от 3 символов', 'error');
+    if (username.length < 6) {
+        showNotification('Имя пользователя должно быть от 6 символов', 'error');
         return;
     }
 
@@ -1227,6 +1246,10 @@ async function changePassword() {
     }
     if (newPass.length < 6) {
         showNotification('Новый пароль должен быть не менее 6 символов', 'error');
+        return;
+    }
+    if (newPass === current) {
+        showNotification('Новый пароль должен отличаться от текущего', 'error');
         return;
     }
 
@@ -1526,11 +1549,11 @@ async function loadHabits(preserveScroll = false) {
                    </div>`;
 
             card.innerHTML = `
-                ${habit.archived ? '<div class="archived-overlay"><span>⏸ Приостановлено</span></div>' : ''}
+                ${habit.archived ? `<div class="archived-name">${habit.name}</div><div class="archived-overlay"><span>⏸ Приостановлено</span></div>` : ''}
                 <span class="category">${getCategoryName(habit.category)} ${isMultiple ? '🔁' : '☑️'}</span>
                 <h4>
                     <span class="checkmark">✓</span>
-                    ${habit.name}
+                    ${habit.archived ? '⏸ Приостановлено' : habit.name}
                     <span class="status-badge" id="status-${habit.id}">⏳ Не выполнено</span>
                 </h4>
                 <p>${habit.description || 'Нет описания'}</p>
@@ -1543,14 +1566,18 @@ async function loadHabits(preserveScroll = false) {
                         ${isMultiple ? '➕ Добавить выполнение' : '✓ Выполнено'}
                     </button>
                     <button class="edit" onclick="openEditModal(${habit.id})">✏️ Редактировать</button>
-                    ${habit.archived ? `<button class="edit" onclick="unarchiveHabit(${habit.id})">📤 Разархивировать</button>` : `<button class="edit" onclick="archiveHabit(${habit.id})">📦 Архивировать</button>`}
+                    <button class="edit" onclick="archiveHabit(${habit.id})">📦 Архивировать</button>
                     <button class="delete" onclick="deleteHabit(${habit.id})">🗑 Удалить</button>
                 </div>
                 <label class="notification-toggle ${notifActive}">
                     <input type="checkbox" ${notifChecked} onchange="toggleNotifications(${habit.id}, this.checked)">
                     <span>🔔 ${habit.notificationsEnabled ? 'Уведомления вкл' : 'Уведомления выкл'}</span>
                 </label>
-                ` : ''}
+                ` : `
+                <div class="actions" style="justify-content: center; margin-top: 10px;">
+                    <button class="edit" onclick="unarchiveHabit(${habit.id})">📤 Достать из архива</button>
+                </div>
+                `}
             `;
             container.appendChild(card);
             habitsNeedingData.push(habit);
@@ -2001,11 +2028,11 @@ async function refreshHabitCard(habitId) {
         const wrapper = document.createElement('div');
         wrapper.innerHTML = `
             <div class="habit-card${completedToday ? ' completed' : ''}${isMultiple ? ' multiple' : ''}${habit.archived ? ' archived' : ''}" id="habit-card-${habit.id}">
-                ${habit.archived ? '<div class="archived-overlay"><span>⏸ Приостановлено</span></div>' : ''}
+                ${habit.archived ? `<div class="archived-name">${habit.name}</div><div class="archived-overlay"><span>⏸ Приостановлено</span></div>` : ''}
                 <span class="category">${getCategoryName(habit.category)} ${isMultiple ? '🔁' : '☑️'}</span>
                 <h4>
                     <span class="checkmark">✓</span>
-                    ${habit.name}
+                    ${habit.archived ? '⏸ Приостановлено' : habit.name}
                     ${!isMultiple && completedToday ? '<span class="status-badge">✓ Выполнено</span>' : ''}
                     ${!isMultiple && !completedToday ? '<span class="status-badge">⏳ Не выполнено</span>' : ''}
                 </h4>
@@ -2019,14 +2046,18 @@ async function refreshHabitCard(habitId) {
                         ${isMultiple ? '➕ Добавить выполнение' : (completedToday ? '↩ Отменить' : '✓ Выполнено')}
                     </button>
                     <button class="edit" onclick="openEditModal(${habit.id})">✏️ Редактировать</button>
-                    ${habit.archived ? `<button class="edit" onclick="unarchiveHabit(${habit.id})">📤 Разархивировать</button>` : `<button class="edit" onclick="archiveHabit(${habit.id})">📦 Архивировать</button>`}
+                    <button class="edit" onclick="archiveHabit(${habit.id})">📦 Архивировать</button>
                     <button class="delete" onclick="deleteHabit(${habit.id})">🗑 Удалить</button>
                 </div>
                 <label class="notification-toggle ${notifActive}">
                     <input type="checkbox" ${notifChecked} onchange="toggleNotifications(${habit.id}, this.checked)">
                     <span>🔔 ${habit.notificationsEnabled ? 'Уведомления вкл' : 'Уведомления выкл'}</span>
                 </label>
-                ` : ''}
+                ` : `
+                <div class="actions" style="justify-content: center; margin-top: 10px;">
+                    <button class="edit" onclick="unarchiveHabit(${habit.id})">📤 Достать из архива</button>
+                </div>
+                `}
             </div>
         `;
         const newCard = wrapper.firstElementChild;
@@ -2741,7 +2772,7 @@ async function loadHabitAnalytics() {
                 <p style="text-align: center; margin-top: 10px; color: #666;">Прогресс за последние 30 дней</p>
 
                 <div class="heatmap-container">
-                    <h4>🔥 Активность за год</h4>
+                    <h4>🔥 Активность за месяц</h4>
                     <div id="heatmap-${habitId}" class="heatmap"></div>
                     <div class="heatmap-legend">
                         <span>Меньше</span>
@@ -2777,7 +2808,7 @@ async function loadHabitAnalytics() {
         // === Heatmap ===
         const heatmapEl = document.getElementById(`heatmap-${habitId}`);
         if (heatmapEl) {
-            const heatmapDays = 365;
+            const heatmapDays = 30;
             const heatmapCounts = {};
             for (let i = 0; i < heatmapDays; i++) {
                 const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
@@ -2789,11 +2820,10 @@ async function loadHabitAnalytics() {
                 }
             });
 
-            const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
             const weeks = [];
             let currentWeek = [];
-            const startOfYear = new Date(Date.now() - (heatmapDays - 1) * 24 * 60 * 60 * 1000);
-            const startDow = (startOfYear.getDay() + 6) % 7; // 0=Пн
+            const startOfPeriod = new Date(Date.now() - (heatmapDays - 1) * 24 * 60 * 60 * 1000);
+            const startDow = (startOfPeriod.getDay() + 6) % 7; // 0=Пн
             for (let i = 0; i < startDow; i++) currentWeek.push(null);
 
             for (let i = heatmapDays - 1; i >= 0; i--) {
