@@ -6,6 +6,24 @@
     <title>Трекер привычек</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function() {
+            var hash = window.location.hash;
+            var isResetPassword = hash.indexOf('reset-password') !== -1;
+            var token = localStorage.getItem('habitTrackerToken');
+            if (token && !isResetPassword) {
+                document.documentElement.classList.add('js-logged-in');
+            }
+        })();
+    </script>
+    <style>
+        .js-logged-in #auth-section,
+        .js-logged-in #register-container,
+        .js-logged-in #forgot-password-container,
+        .js-logged-in #reset-password-container { display: none !important; }
+        .js-logged-in #habits-section { display: block !important; }
+        .js-logged-in #nav { display: block !important; }
+    </style>
 </head>
 <body>
     <div class="container">
