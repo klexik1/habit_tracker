@@ -17,12 +17,13 @@
         })();
     </script>
     <style>
+        #habits-section, #analytics-section, #profile-section, #nav { display: none; }
         .js-logged-in #auth-section,
         .js-logged-in #register-container,
         .js-logged-in #forgot-password-container,
-        .js-logged-in #reset-password-container { display: none !important; }
-        .js-logged-in #habits-section { display: block !important; }
-        .js-logged-in #nav { display: block !important; }
+        .js-logged-in #reset-password-container { display: none; }
+        .js-logged-in #habits-section { display: block; }
+        .js-logged-in #nav { display: block; }
     </style>
 </head>
 <body>
@@ -39,7 +40,7 @@
                     </div>
                 </div>
             <h1>📊 Трекер привычек</h1>
-            <nav id="nav" style="display: none;">
+            <nav id="nav">
                 <button onclick="showSection('habits')">Привычки</button>
                 <button onclick="showSection('analytics')">Аналитика</button>
                 <button onclick="showSection('profile')">Профиль</button>
@@ -93,7 +94,7 @@
         </section>
 
         <!-- Привычки -->
-        <section id="habits-section" style="display: none;">
+        <section id="habits-section">
             <div class="form-card">
                 <h3>Новая привычка</h3>
                 <form id="habit-form">
@@ -181,7 +182,7 @@
         </section>
 
         <!-- Аналитика -->
-        <section id="analytics-section" style="display: none;">
+        <section id="analytics-section">
             <h2>📈 Аналитика</h2>
 
             <div class="habit-selector">
@@ -198,7 +199,7 @@
         </section>
 
         <!-- Профиль -->
-        <section id="profile-section" style="display: none;">
+        <section id="profile-section">
             <h2>Профиль</h2>
             <div class="profile-card">
                 <div class="profile-info">

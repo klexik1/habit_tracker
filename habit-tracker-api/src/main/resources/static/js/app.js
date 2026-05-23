@@ -703,6 +703,7 @@ function logout() {
     localStorage.removeItem('habitTrackerToken');
     completionsCache.clear();
     rangeCache.clear();
+    document.documentElement.classList.remove('js-logged-in');
     document.getElementById('nav').style.display = 'none';
     document.getElementById('habits-section').style.display = 'none';
     document.getElementById('analytics-section').style.display = 'none';
