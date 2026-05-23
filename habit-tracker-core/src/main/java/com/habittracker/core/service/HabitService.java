@@ -11,6 +11,7 @@ import com.habittracker.core.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -51,13 +52,21 @@ public class HabitService {
     }
 
     public List<HabitDto> getAllHabits(User user) {
+        return getAllHabits(user, LocalDate.now());
+    }
+
+    public List<HabitDto> getAllHabits(User user, LocalDate clientDate) {
         return habitRepository.findByUserId(user.getId()).stream()
-                .map(this::toDto)
+                .map(h -> toDto(h, clientDate))
                 .toList();
     }
 
     public HabitDto getHabitById(Long id, User user) {
-        return toDto(findHabitEntityById(id, user));
+        return getHabitById(id, user, LocalDate.now());
+    }
+
+    public HabitDto getHabitById(Long id, User user, LocalDate clientDate) {
+        return toDto(findHabitEntityById(id, user), clientDate);
     }
 
     private Habit findHabitEntityById(Long id, User user) {
@@ -103,9 +112,13 @@ public class HabitService {
     }
 
     public HabitDto toDto(Habit habit) {
-        Long totalCompletions = completionService.getTotalCompletions(habit.getId());
-        Long todayCompletions = completionService.getTodayCompletionCount(habit.getId());
-        boolean completedToday = completionService.isCompletedToday(habit.getId());
+        return toDto(habit, LocalDate.now());
+    }
+
+    public HabitDto toDto(Habit habit, LocalDate clientDate) {
+        Long totalCompletions = completionService.getTotalCompletions(habit.getId(), clientDate);
+        Long todayCompletions = completionService.getTodayCompletionCount(habit.getId(), clientDate);
+        boolean completedToday = completionService.isCompletedToday(habit.getId(), clientDate);
         return new HabitDto(
                 habit.getId(),
                 habit.getName(),

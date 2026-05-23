@@ -6,10 +6,12 @@ import com.habittracker.core.entity.User;
 import com.habittracker.core.service.HabitService;
 import com.habittracker.core.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -30,15 +32,20 @@ public class HabitController {
     }
 
     @GetMapping
-    public ResponseEntity<List<HabitDto>> getAll(Authentication auth) {
+    public ResponseEntity<List<HabitDto>> getAll(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            Authentication auth) {
         User user = userService.findByUsername(auth.getName());
-        return ResponseEntity.ok(habitService.getAllHabits(user));
+        return ResponseEntity.ok(habitService.getAllHabits(user, date));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<HabitDto> getById(@PathVariable Long id, Authentication auth) {
+    public ResponseEntity<HabitDto> getById(
+            @PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            Authentication auth) {
         User user = userService.findByUsername(auth.getName());
-        return ResponseEntity.ok(habitService.getHabitById(id, user));
+        return ResponseEntity.ok(habitService.getHabitById(id, user, date));
     }
 
     @PutMapping("/{id}")

@@ -40,14 +40,14 @@ public class HabitCompletionService {
      * Для SINGLE — переключает выполнено/не выполнено за сегодня.
      * Для MULTIPLE — всегда создаёт новую запись выполнения.
      */
-    public CompletionDto markCompletion(Long habitId, User user) {
+    public CompletionDto markCompletion(Long habitId, User user, LocalDate clientDate) {
         Habit habit = habitRepository.findById(habitId)
                 .orElseThrow(() -> new NotFoundException("Habit not found"));
         if (!habit.getUser().getId().equals(user.getId())) {
             throw new NotFoundException("Habit not found");
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = clientDate != null ? clientDate : LocalDate.now();
 
         if (habit.getHabitType() == HabitType.MULTIPLE) {
             // Многоразовая — создаём новую запись каждый раз
@@ -129,32 +129,52 @@ public class HabitCompletionService {
     }
 
     public List<CompletionDto> getTodayCompletions(User user) {
-        return completionRepository.findByUserIdAndCompletedDate(user.getId(), LocalDate.now())
+        return getTodayCompletions(user, LocalDate.now());
+    }
+
+    public List<CompletionDto> getTodayCompletions(User user, LocalDate date) {
+        return completionRepository.findByUserIdAndCompletedDate(user.getId(), date)
                 .stream()
                 .map(this::toDto)
                 .toList();
     }
 
     public long getTotalCompletions(Long habitId) {
+        return getTotalCompletions(habitId, LocalDate.now());
+    }
+
+    public long getTotalCompletions(Long habitId, LocalDate endDate) {
         return completionRepository.countCompletedByHabitAndPeriod(
                 habitId,
                 LocalDate.of(2000, 1, 1),
-                LocalDate.now()
+                endDate
         );
     }
 
     public long getTodayCompletionCount(Long habitId) {
-        return completionRepository.countCompletedToday(habitId, LocalDate.now());
+        return getTodayCompletionCount(habitId, LocalDate.now());
+    }
+
+    public long getTodayCompletionCount(Long habitId, LocalDate date) {
+        return completionRepository.countCompletedToday(habitId, date);
     }
 
     public boolean isCompletedToday(Long habitId) {
-        return completionRepository.findByHabitIdAndCompletedDate(habitId, LocalDate.now())
+        return isCompletedToday(habitId, LocalDate.now());
+    }
+
+    public boolean isCompletedToday(Long habitId, LocalDate date) {
+        return completionRepository.findByHabitIdAndCompletedDate(habitId, date)
                 .stream()
                 .anyMatch(HabitCompletion::isCompleted);
     }
 
     public List<CompletionDto> getTodayDetailedCompletions(Long habitId) {
-        return completionRepository.findByHabitIdAndCompletedDateAndCompletedTrue(habitId, LocalDate.now())
+        return getTodayDetailedCompletions(habitId, LocalDate.now());
+    }
+
+    public List<CompletionDto> getTodayDetailedCompletions(Long habitId, LocalDate date) {
+        return completionRepository.findByHabitIdAndCompletedDateAndCompletedTrue(habitId, date)
                 .stream()
                 .map(this::toDto)
                 .toList();

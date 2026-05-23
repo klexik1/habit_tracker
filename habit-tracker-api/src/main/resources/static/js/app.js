@@ -506,7 +506,8 @@ async function checkReminders() {
     window._lastCheckedMinuteKey = minuteKey;
 
     try {
-        const res = await fetch(`${API_URL}/habits`, {
+        const today = toLocalIso(new Date());
+        const res = await fetch(`${API_URL}/habits?date=${today}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) return;
@@ -582,7 +583,8 @@ async function checkReminders() {
 // Переключить уведомления для привычки
 async function toggleNotifications(habitId, enabled) {
     try {
-        const habitRes = await fetch(`${API_URL}/habits/${habitId}`, {
+        const today = toLocalIso(new Date());
+        const habitRes = await fetch(`${API_URL}/habits/${habitId}?date=${today}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!habitRes.ok) throw new Error('Ошибка');
@@ -1445,7 +1447,8 @@ async function loadHabits(preserveScroll = false) {
         const effectiveFilterMultiple = showArchived ? true : filterMultiple;
 
     try {
-        const response = await fetch(`${API_URL}/habits`, {
+        const today = toLocalIso(new Date());
+        const response = await fetch(`${API_URL}/habits?date=${today}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -1583,7 +1586,6 @@ async function loadHabits(preserveScroll = false) {
             habitsNeedingData.push(habit);
         }
 
-        const today = toLocalIso(new Date());
         const yearStart = toLocalIso(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
 
         // Параллельная загрузка выполнений для всех видимых привычек
@@ -1795,7 +1797,8 @@ document.addEventListener('DOMContentLoaded', initEditFrequencyHandler);
 
 async function openEditModal(habitId) {
     try {
-        const response = await fetch(`${API_URL}/habits/${habitId}`, {
+        const today = toLocalIso(new Date());
+        const response = await fetch(`${API_URL}/habits/${habitId}?date=${today}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error('Ошибка');
@@ -1896,7 +1899,8 @@ async function saveHabitEdit(e) {
     const targetCount = rawTarget === '' ? 0 : parseInt(rawTarget);
 
     try {
-        const habitRes = await fetch(`${API_URL}/habits/${habitId}`, {
+        const today = toLocalIso(new Date());
+        const habitRes = await fetch(`${API_URL}/habits/${habitId}?date=${today}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!habitRes.ok) throw new Error('Ошибка');
@@ -1972,7 +1976,7 @@ async function refreshHabitCard(habitId) {
         const yearStart = toLocalIso(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
 
         const [habitRes, todayComps, yesterdayComps] = await Promise.all([
-            fetch(`${API_URL}/habits/${habitId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${API_URL}/habits/${habitId}?date=${today}`, { headers: { 'Authorization': `Bearer ${token}` } }),
             fetchTodayCompletions(habitId),
             fetchYesterdayCompletions(habitId)
         ]);
@@ -2127,7 +2131,8 @@ async function refreshHabitCard(habitId) {
 // Обработка выполнения
 async function handleComplete(habitId, isMultiple, event) {
     try {
-        const response = await fetch(`${API_URL}/completions/habit/${habitId}`, {
+        const today = toLocalIso(new Date());
+        const response = await fetch(`${API_URL}/completions/habit/${habitId}?date=${today}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2446,7 +2451,8 @@ async function loadHabitsForAnalytics() {
     select.innerHTML = '<option value="">📊 Общая статистика</option>';
 
     try {
-        const response = await fetch(`${API_URL}/habits`, {
+        const today = toLocalIso(new Date());
+        const response = await fetch(`${API_URL}/habits?date=${today}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -2469,7 +2475,8 @@ async function loadOverallAnalytics() {
     container.innerHTML = '<div class="loading">Загрузка общей статистики...</div>';
 
     try {
-        const response = await fetch(`${API_URL}/habits`, {
+        const today = toLocalIso(new Date());
+        const response = await fetch(`${API_URL}/habits?date=${today}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -2631,7 +2638,7 @@ async function loadHabitAnalytics() {
             fetch(`${API_URL}/completions/habit/${habitId}?start=${historyStartDate}&end=${endDate}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             }),
-            fetch(`${API_URL}/habits/${habitId}`, {
+            fetch(`${API_URL}/habits/${habitId}?date=${endDate}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
         ]);

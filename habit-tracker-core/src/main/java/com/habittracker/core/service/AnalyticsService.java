@@ -47,7 +47,7 @@ public class AnalyticsService {
         int days = (int) java.time.temporal.ChronoUnit.DAYS.between(start, end) + 1;
         double rate = days > 0 ? (uniqueDaysCompleted * 100.0 / days) : 0;
 
-        int currentStreak = calculateCurrentStreak(allCompletions);
+        int currentStreak = calculateCurrentStreak(allCompletions, end);
         int longestStreak = calculateLongestStreak(allCompletions);
         int longestStreakWeeks = calculateLongestStreakWeeks(allCompletions);
         int longestStreakMonths = calculateLongestStreakMonths(allCompletions);
@@ -76,7 +76,7 @@ public class AnalyticsService {
         );
     }
 
-    private int calculateCurrentStreak(List<HabitCompletion> all) {
+    private int calculateCurrentStreak(List<HabitCompletion> all, LocalDate referenceDate) {
         List<LocalDate> dates = all.stream()
                 .filter(HabitCompletion::isCompleted)
                 .map(HabitCompletion::getCompletedDate)
@@ -85,8 +85,7 @@ public class AnalyticsService {
 
         if (dates.isEmpty()) return 0;
         int streak = 0;
-        LocalDate today = LocalDate.now();
-        LocalDate check = today;
+        LocalDate check = referenceDate;
         for (LocalDate date : dates) {
             if (date.equals(check) || date.equals(check.minusDays(1))) {
                 streak++;

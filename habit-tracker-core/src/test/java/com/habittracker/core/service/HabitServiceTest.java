@@ -34,9 +34,9 @@ class HabitServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(completionService.getTotalCompletions(any())).thenReturn(0L);
-        when(completionService.getTodayCompletionCount(any())).thenReturn(0L);
-        when(completionService.isCompletedToday(any())).thenReturn(false);
+        when(completionService.getTotalCompletions(any(), any())).thenReturn(0L);
+        when(completionService.getTodayCompletionCount(any(), any())).thenReturn(0L);
+        when(completionService.isCompletedToday(any(), any())).thenReturn(false);
     }
 
     @Test
