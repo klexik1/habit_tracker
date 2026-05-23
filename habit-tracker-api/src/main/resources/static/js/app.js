@@ -182,13 +182,18 @@ document.addEventListener('DOMContentLoaded', () => {
     initPushNotifications();
     initReminderPicker();
 
-    // Обработчик переключения архива: снимаем фильтры типов
+    // Обработчик переключения архива
     const archivedToggle = document.getElementById('filter-archived');
     if (archivedToggle) {
         archivedToggle.addEventListener('change', () => {
             if (archivedToggle.checked) {
+                // В архиве показываем все типы — снимаем фильтры
                 document.getElementById('filter-single').checked = false;
                 document.getElementById('filter-multiple').checked = false;
+            } else {
+                // При выходе из архива включаем оба типа
+                document.getElementById('filter-single').checked = true;
+                document.getElementById('filter-multiple').checked = true;
             }
             loadHabits();
         });
