@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test-h2:
+    runs-on: ubuntu-latest
+    name: Tests with H2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run tests with H2
+        run: mvn clean verify --batch-mode
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-h2
+          path: |
+            */target/surefire-reports/
+            */target/failsafe-reports/
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report-h2
+          path: */target/site/jacoco/
+
+  test-testcontainers:
+    runs-on: ubuntu-latest
+    name: Tests with Testcontainers PostgreSQL
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run tests with Testcontainers
+        run: mvn clean test --batch-mode -Dtest="*Postgres*Test,*TestcontainersTest"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-testcontainers
+          path: |
+            */target/surefire-reports/
+            */target/failsafe-reports/
+
