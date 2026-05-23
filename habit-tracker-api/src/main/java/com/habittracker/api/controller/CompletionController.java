@@ -29,9 +29,10 @@ public class CompletionController {
     public ResponseEntity<CompletionDto> markCompletion(
             @PathVariable Long habitId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime clientDateTime,
             Authentication auth) {
         User user = userService.findByUsername(auth.getName());
-        return ResponseEntity.ok(completionService.markCompletion(habitId, user, date));
+        return ResponseEntity.ok(completionService.markCompletion(habitId, user, date, clientDateTime));
     }
 
     @DeleteMapping("/{completionId}")

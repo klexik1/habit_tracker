@@ -40,7 +40,7 @@ public class HabitCompletionService {
      * Для SINGLE — переключает выполнено/не выполнено за сегодня.
      * Для MULTIPLE — всегда создаёт новую запись выполнения.
      */
-    public CompletionDto markCompletion(Long habitId, User user, LocalDate clientDate) {
+    public CompletionDto markCompletion(Long habitId, User user, LocalDate clientDate, LocalDateTime clientDateTime) {
         Habit habit = habitRepository.findById(habitId)
                 .orElseThrow(() -> new NotFoundException("Habit not found"));
         if (!habit.getUser().getId().equals(user.getId())) {
@@ -48,15 +48,16 @@ public class HabitCompletionService {
         }
 
         LocalDate today = clientDate != null ? clientDate : LocalDate.now();
+        LocalDateTime completionDateTime = clientDateTime != null ? clientDateTime : LocalDateTime.now();
 
         if (habit.getHabitType() == HabitType.MULTIPLE) {
             // Многоразовая — создаём новую запись каждый раз
             HabitCompletion completion = new HabitCompletion();
             completion.setHabit(habit);
             completion.setCompletedDate(today);
-            completion.setCompletedAt(LocalDateTime.now());
+            completion.setCompletedAt(completionDateTime);
             completion.setCompleted(true);
-            completion.setNote("Выполнено в " + completion.getCompletedAt().toLocalTime().withSecond(0).withNano(0));
+            completion.setNote("Выполнено в " + completionDateTime.toLocalTime().withSecond(0).withNano(0));
             HabitCompletion saved = completionRepository.save(completion);
             user.setLifetimeCompletionCount((user.getLifetimeCompletionCount() != null ? user.getLifetimeCompletionCount() : 0) + 1);
             userRepository.save(user);
@@ -72,14 +73,14 @@ public class HabitCompletionService {
                 completion = new HabitCompletion();
                 completion.setHabit(habit);
                 completion.setCompletedDate(today);
-                completion.setCompletedAt(LocalDateTime.now());
+                completion.setCompletedAt(completionDateTime);
                 completion.setCompleted(true);
                 completion.setNote("Выполнено");
             } else {
                 completion.setCompleted(!completion.isCompleted());
                 completion.setNote(completion.isCompleted() ? "Выполнено" : "Отменено");
                 if (completion.isCompleted()) {
-                    completion.setCompletedAt(LocalDateTime.now());
+                    completion.setCompletedAt(completionDateTime);
                 }
             }
 

@@ -1400,12 +1400,10 @@ async function addHabitToList(habit) {
     }
 
     const streakLabel = !isMultiple ? getStreakLabel(habit.frequency, 0) : '';
-    const isIntervalNew = habit.frequency === 'INTERVAL';
     const statsHtml = isMultiple
         ? `<div class="stats-row">
             <div class="stat"><div class="value">0</div><div class="label">Всего</div></div>
             <div class="stat"><div class="value" id="stat-today-${habit.id}">0</div><div class="label">Сегодня</div></div>
-            ${isIntervalNew ? `<div class="stat"><div class="value" id="stat-period-${habit.id}">0</div><div class="label">За период</div></div>` : ''}
             <div class="stat"><div class="value" id="stat-yesterday-${habit.id}">0</div><div class="label">Вчера</div></div>
            </div>`
         : `<div class="stats-row"><div class="stat"><div class="value">0</div><div class="label">Всего</div></div><div class="stat"><div class="value">0</div><div class="label">${streakLabel}</div></div></div>`;
@@ -1562,12 +1560,10 @@ async function loadHabits(preserveScroll = false) {
             const streakLabel = !isMultiple ? getStreakLabel(habit.frequency, 0) : '';
             // Для многоразовых — три цифры: Всего / Сегодня / Вчера
             // Для INTERVAL — четыре: Всего / Сегодня / За период / Вчера
-            const isInterval = habit.frequency === 'INTERVAL';
             const statsHtml = isMultiple
                 ? `<div class="stats-row">
                     <div class="stat"><div class="value">${habit.totalCompletions || 0}</div><div class="label">Всего</div></div>
                     <div class="stat"><div class="value" id="stat-today-${habit.id}">—</div><div class="label">Сегодня</div></div>
-                    ${isInterval ? `<div class="stat"><div class="value" id="stat-period-${habit.id}">—</div><div class="label">За период</div></div>` : ''}
                     <div class="stat"><div class="value" id="stat-yesterday-${habit.id}">—</div><div class="label">Вчера</div></div>
                    </div>`
                 : `<div class="stats-row">
@@ -1627,10 +1623,7 @@ async function loadHabits(preserveScroll = false) {
                 yearComps = await fetchCompletions(habit.id, yearStart, today);
             }
 
-            const isIntervalSingle = !isMultiple && habit.frequency === 'INTERVAL';
-            const completedToday = isIntervalSingle
-                ? isCompletedInPeriod(habit, todayComps, yesterdayComps)
-                : (!isMultiple && todayComps.length > 0);
+            const completedToday = !isMultiple && todayComps.length > 0;
             const todayCount = todayComps.length;
             const streak = !isMultiple ? calculateStreak(habit, yearComps) : 0;
 
@@ -1664,12 +1657,6 @@ async function loadHabits(preserveScroll = false) {
                 const statYesterday = document.getElementById(`stat-yesterday-${habit.id}`);
                 if (statToday) statToday.textContent = todayCount;
                 if (statYesterday) statYesterday.textContent = yesterdayComps.length;
-
-                const statPeriod = document.getElementById(`stat-period-${habit.id}`);
-                if (statPeriod) {
-                    const periodCount = countCompletionsInPeriod(habit, todayComps, yesterdayComps);
-                    statPeriod.textContent = periodCount;
-                }
 
                 const title = document.getElementById(`today-title-${habit.id}`);
                 if (title) {
@@ -2036,10 +2023,7 @@ async function refreshHabitCard(habitId) {
         if (!habitRes.ok) throw new Error('Ошибка');
         const habit = await habitRes.json();
         const isMultiple = habit.habitType === 'MULTIPLE';
-        const isIntervalSingle = !isMultiple && habit.frequency === 'INTERVAL';
-        const completedToday = isIntervalSingle
-            ? isCompletedInPeriod(habit, todayComps, yesterdayComps)
-            : (!isMultiple && todayComps.length > 0);
+        const completedToday = !isMultiple && todayComps.length > 0;
         const todayCount = todayComps.length;
 
         let streak = 0;
@@ -2067,13 +2051,10 @@ async function refreshHabitCard(habitId) {
         }
 
         const streakLabel = !isMultiple ? getStreakLabel(habit.frequency, streak) : '';
-        const isIntervalRefresh = habit.frequency === 'INTERVAL';
-        const periodCountRefresh = isIntervalRefresh ? countCompletionsInPeriod(habit, todayComps, yesterdayComps) : 0;
         const statsHtml = isMultiple
             ? `<div class="stats-row">
                 <div class="stat"><div class="value">${habit.totalCompletions || 0}</div><div class="label">Всего</div></div>
                 <div class="stat"><div class="value">${todayCount}</div><div class="label">Сегодня</div></div>
-                ${isIntervalRefresh ? `<div class="stat"><div class="value">${periodCountRefresh}</div><div class="label">За период</div></div>` : ''}
                 <div class="stat"><div class="value">${yesterdayComps.length}</div><div class="label">Вчера</div></div>
                </div>`
             : `<div class="stats-row">
@@ -2184,7 +2165,9 @@ async function refreshHabitCard(habitId) {
 async function handleComplete(habitId, isMultiple, event) {
     try {
         const today = toLocalIso(new Date());
-        const response = await fetch(`${API_URL}/completions/habit/${habitId}?date=${today}`, {
+        const now = new Date();
+        const clientDateTime = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}T${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const response = await fetch(`${API_URL}/completions/habit/${habitId}?date=${today}&clientDateTime=${encodeURIComponent(clientDateTime)}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
