@@ -5,6 +5,11 @@ let currentUser = null;
 let dailyChartInstance = null;
 let statusChartInstance = null;
 
+// Кэши для снижения нагрузки на сервер
+const completionsCache = new Map(); // ключ: habitId_dateIso
+const rangeCache = new Map();       // ключ: habitId_start_end
+let isCheckingReminders = false;
+
 // Смещение дней для тестирования (кнопка "пропустить сутки")
 let testDayOffset = parseInt(localStorage.getItem('testDayOffset') || '0');
 
@@ -467,6 +472,8 @@ function initSkipDayButton() {
     btn.addEventListener('click', () => {
         testDayOffset++;
         localStorage.setItem('testDayOffset', testDayOffset);
+        completionsCache.clear();
+        rangeCache.clear();
         showNotification(`⏭ Сутки пропущены! Текущая дата: ${toLocalIso(new Date())}`, 'info');
         if (token) loadHabits();
     });
@@ -475,6 +482,8 @@ function initSkipDayButton() {
         resetBtn.addEventListener('click', () => {
             testDayOffset = 0;
             localStorage.setItem('testDayOffset', '0');
+            completionsCache.clear();
+            rangeCache.clear();
             showNotification('↺ Дата сброшена к текущей', 'info');
             if (token) loadHabits();
         });
@@ -488,7 +497,7 @@ function initPushNotifications() {
         Notification.requestPermission();
     }
     window._lastCheckedMinuteKey = null;
-    setInterval(checkReminders, 1000);
+    setInterval(checkReminders, 15000); // раз в 15 секунд вместо каждой секунды
     checkReminders();
 }
 
@@ -501,16 +510,18 @@ function parseTimeToMinutes(timeStr) {
 
 async function checkReminders() {
     if (!token || Notification.permission !== 'granted') return;
-    const now = getTestDate();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const todayStr = toLocalIso(now);
-    const minuteKey = `${todayStr}-${nowMinutes}`;
-
-    // Вся логика — ровно один раз в минуту
-    if (window._lastCheckedMinuteKey === minuteKey) return;
-    window._lastCheckedMinuteKey = minuteKey;
-
+    if (isCheckingReminders) return;
+    isCheckingReminders = true;
     try {
+        const now = getTestDate();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const todayStr = toLocalIso(now);
+        const minuteKey = `${todayStr}-${nowMinutes}`;
+
+        // Вся логика — ровно один раз в минуту
+        if (window._lastCheckedMinuteKey === minuteKey) return;
+        window._lastCheckedMinuteKey = minuteKey;
+
         const today = toLocalIso(new Date());
         const res = await fetch(`${API_URL}/habits?date=${today}`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -582,6 +593,8 @@ async function checkReminders() {
         }
     } catch (e) {
         // игнорируем ошибки проверки
+    } finally {
+        isCheckingReminders = false;
     }
 }
 
@@ -688,6 +701,8 @@ function logout() {
     token = null;
     currentUser = null;
     localStorage.removeItem('habitTrackerToken');
+    completionsCache.clear();
+    rangeCache.clear();
     document.getElementById('nav').style.display = 'none';
     document.getElementById('habits-section').style.display = 'none';
     document.getElementById('analytics-section').style.display = 'none';
@@ -717,8 +732,12 @@ async function loadProfile() {
         document.getElementById('profile-created').textContent = profile.createdAt
             ? new Date(profile.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
             : '—';
-        document.getElementById('profile-habit-count').textContent = profile.habitCount || 0;
-        document.getElementById('profile-total-completions').textContent = profile.totalCompletions || 0;
+        const habitCount = profile.habitCount || 0;
+        const totalCompletions = profile.totalCompletions || 0;
+        document.getElementById('profile-habit-count').textContent = habitCount;
+        document.getElementById('profile-habit-count-label').textContent = pluralize(habitCount, 'привычка', 'привычки', 'привычек');
+        document.getElementById('profile-total-completions').textContent = totalCompletions;
+        document.getElementById('profile-total-completions-label').textContent = pluralize(totalCompletions, 'выполнение', 'выполнения', 'выполнений');
 
         // Обновляем UI верификации email
         updateEmailVerificationUI(profile.emailVerified, profile.email);
@@ -1363,7 +1382,7 @@ async function addHabitToList(habit) {
     card.style.transform = 'translateY(-15px)';
     card.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
 
-    const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} раз` : ' раз';
+    const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} ${pluralize(habit.targetCount, 'раз', 'раза', 'раз')}` : ` ${pluralize(habit.targetCount || 0, 'раз', 'раза', 'раз')}`;
     const notifChecked = habit.notificationsEnabled ? 'checked' : '';
     const notifActive = habit.notificationsEnabled ? 'active' : '';
     const reminderLabel = formatReminderLabel(habit);
@@ -1380,7 +1399,7 @@ async function addHabitToList(habit) {
         extraHtml = `<div id="single-completion-${habit.id}" class="completion-time-single"></div>`;
     }
 
-    const streakLabel = !isMultiple ? getStreakLabel(habit.frequency) : '';
+    const streakLabel = !isMultiple ? getStreakLabel(habit.frequency, 0) : '';
     const isIntervalNew = habit.frequency === 'INTERVAL';
     const statsHtml = isMultiple
         ? `<div class="stats-row">
@@ -1523,7 +1542,7 @@ async function loadHabits(preserveScroll = false) {
             card.className = 'habit-card' + (isMultiple ? ' multiple' : '') + (isArchived ? ' archived' : '');
             card.id = `habit-card-${habit.id}`;
 
-            const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} раз` : ' раз';
+            const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} ${pluralize(habit.targetCount, 'раз', 'раза', 'раз')}` : ` ${pluralize(habit.targetCount || 0, 'раз', 'раза', 'раз')}`;
             const notifChecked = habit.notificationsEnabled ? 'checked' : '';
             const notifActive = habit.notificationsEnabled ? 'active' : '';
             const reminderLabel = formatReminderLabel(habit);
@@ -1540,7 +1559,7 @@ async function loadHabits(preserveScroll = false) {
                 extraHtml = `<div id="single-completion-${habit.id}" class="completion-time-single"></div>`;
             }
 
-            const streakLabel = !isMultiple ? getStreakLabel(habit.frequency) : '';
+            const streakLabel = !isMultiple ? getStreakLabel(habit.frequency, 0) : '';
             // Для многоразовых — три цифры: Всего / Сегодня / Вчера
             // Для INTERVAL — четыре: Всего / Сегодня / За период / Вчера
             const isInterval = habit.frequency === 'INTERVAL';
@@ -1553,7 +1572,7 @@ async function loadHabits(preserveScroll = false) {
                    </div>`
                 : `<div class="stats-row">
                     <div class="stat"><div class="value">${habit.totalCompletions || 0}</div><div class="label">Всего</div></div>
-                    <div class="stat"><div class="value" id="streak-${habit.id}">—</div><div class="label">${streakLabel}</div></div>
+                    <div class="stat"><div class="value" id="streak-${habit.id}">—</div><div class="label" id="streak-label-${habit.id}">${streakLabel}</div></div>
                    </div>`;
 
             card.innerHTML = `
@@ -1654,12 +1673,14 @@ async function loadHabits(preserveScroll = false) {
 
                 const title = document.getElementById(`today-title-${habit.id}`);
                 if (title) {
-                    const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} раз` : ' раз';
+                    const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} ${pluralize(habit.targetCount, 'раз', 'раза', 'раз')}` : ` ${pluralize(habit.targetCount || 0, 'раз', 'раза', 'раз')}`;
                     title.textContent = `🔥 Сегодня выполнено: ${todayCount}${targetPart}`;
                 }
             } else {
                 const streakEl = document.getElementById(`streak-${habit.id}`);
+                const streakLabelEl = document.getElementById(`streak-label-${habit.id}`);
                 if (streakEl) streakEl.textContent = streak;
+                if (streakLabelEl) streakLabelEl.textContent = getStreakLabel(habit.frequency, streak);
             }
 
             // Заполняем список выполнений
@@ -1724,20 +1745,39 @@ async function loadHabits(preserveScroll = false) {
     }
 }
 
-// Загрузка выполнений за конкретную дату
+// Загрузка выполнений за конкретную дату (с кэшем)
 async function fetchCompletionsForDate(habitId, dateIso) {
+    const key = `${habitId}_${dateIso}`;
+    if (completionsCache.has(key)) {
+        return completionsCache.get(key);
+    }
     try {
         const response = await fetch(`${API_URL}/completions/habit/${habitId}?start=${dateIso}&end=${dateIso}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) return [];
         const completions = await response.json();
-        return completions
+        const result = completions
             .map(c => ({ ...c, completedDate: normalizeDate(c.completedDate) }))
             .filter(c => c.completedDate === dateIso && c.completed);
+        completionsCache.set(key, result);
+        return result;
     } catch (error) {
         return [];
     }
+}
+
+function invalidateCompletionsCache(habitId, dateIso) {
+    completionsCache.delete(`${habitId}_${dateIso}`);
+}
+
+function invalidateAllHabitCaches(habitId) {
+    const today = toLocalIso(new Date());
+    const yesterday = toLocalIso(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const yearStart = toLocalIso(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
+    completionsCache.delete(`${habitId}_${today}`);
+    completionsCache.delete(`${habitId}_${yesterday}`);
+    rangeCache.delete(`${habitId}_${yearStart}_${today}`);
 }
 
 // Загрузка сегодняшних выполнений (сырые данные)
@@ -1752,17 +1792,23 @@ async function fetchYesterdayCompletions(habitId) {
     return fetchCompletionsForDate(habitId, yesterday);
 }
 
-// Загрузка всех выполнений за период
+// Загрузка всех выполнений за период (с кэшем)
 async function fetchCompletions(habitId, start, end) {
+    const key = `${habitId}_${start}_${end}`;
+    if (rangeCache.has(key)) {
+        return rangeCache.get(key);
+    }
     try {
         const response = await fetch(`${API_URL}/completions/habit/${habitId}?start=${start}&end=${end}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) return [];
         const completions = await response.json();
-        return completions
+        const result = completions
             .map(c => ({ ...c, completedDate: normalizeDate(c.completedDate) }))
             .filter(c => c.completed);
+        rangeCache.set(key, result);
+        return result;
     } catch (error) {
         return [];
     }
@@ -1889,6 +1935,7 @@ async function resetHabitStats() {
 
         showNotification('📊 Статистика сброшена', 'success');
         closeEditModal();
+        invalidateAllHabitCaches(habitId);
         await refreshHabitCard(habitId);
     } catch (error) {
         showNotification('Ошибка сброса статистики', 'error');
@@ -2003,7 +2050,7 @@ async function refreshHabitCard(habitId) {
 
         // Собираем новый HTML карточки
         let extraHtml = '';
-        const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} раз` : ' раз';
+        const targetPart = (habit.targetCount && habit.targetCount > 0) ? ` / ${habit.targetCount} ${pluralize(habit.targetCount, 'раз', 'раза', 'раз')}` : ` ${pluralize(habit.targetCount || 0, 'раз', 'раза', 'раз')}`;
         const notifChecked = habit.notificationsEnabled ? 'checked' : '';
         const notifActive = habit.notificationsEnabled ? 'active' : '';
         const reminderLabel = formatReminderLabel(habit);
@@ -2019,7 +2066,7 @@ async function refreshHabitCard(habitId) {
             extraHtml = `<div id="single-completion-${habit.id}" class="completion-time-single"></div>`;
         }
 
-        const streakLabel = !isMultiple ? getStreakLabel(habit.frequency) : '';
+        const streakLabel = !isMultiple ? getStreakLabel(habit.frequency, streak) : '';
         const isIntervalRefresh = habit.frequency === 'INTERVAL';
         const periodCountRefresh = isIntervalRefresh ? countCompletionsInPeriod(habit, todayComps, yesterdayComps) : 0;
         const statsHtml = isMultiple
@@ -2155,6 +2202,7 @@ async function handleComplete(habitId, isMultiple, event) {
             showNotification(message, result.completed ? 'success' : 'info');
         }
 
+        invalidateAllHabitCaches(habitId);
         await refreshHabitCard(habitId);
     } catch (error) {
         showNotification('Ошибка', 'error');
@@ -2174,6 +2222,7 @@ async function removeCompletion(completionId, habitId, event) {
         if (!response.ok) throw new Error('Ошибка');
 
         showNotification('Выполнение удалено', 'info');
+        invalidateAllHabitCaches(habitId);
         await refreshHabitCard(habitId);
     } catch (error) {
         showNotification('Ошибка удаления', 'error');
@@ -2189,6 +2238,7 @@ async function archiveHabit(habitId) {
         });
         if (!response.ok) throw new Error('Ошибка');
         showNotification('Привычка архивирована', 'info');
+        invalidateAllHabitCaches(habitId);
         await loadHabits(true);
     } catch (error) {
         showNotification('Ошибка архивирования', 'error');
@@ -2204,6 +2254,7 @@ async function unarchiveHabit(habitId) {
         });
         if (!response.ok) throw new Error('Ошибка');
         showNotification('Привычка восстановлена из архива', 'success');
+        invalidateAllHabitCaches(habitId);
         await loadHabits(true);
     } catch (error) {
         showNotification('Ошибка разархивирования', 'error');
@@ -2223,6 +2274,7 @@ async function deleteHabit(habitId) {
         if (!response.ok) throw new Error('Ошибка');
 
         showNotification('Привычка удалена', 'success');
+        invalidateAllHabitCaches(habitId);
         await loadHabits(true);
     } catch (error) {
         showNotification('Ошибка удаления', 'error');
@@ -2257,14 +2309,26 @@ function getFrequencyName(freq) {
     return names[freq] || freq;
 }
 
-function getStreakLabel(freq) {
-    const names = {
-        'DAILY': 'Дней подряд',
-        'WEEKLY': 'Недель подряд',
-        'MONTHLY': 'Месяцев подряд',
-        'INTERVAL': 'Выполнений'
-    };
-    return names[freq] || 'Серия';
+function pluralize(n, one, few, many) {
+    n = Math.abs(n) % 100;
+    const n1 = n % 10;
+    if (n > 10 && n < 20) return many;
+    if (n1 > 1 && n1 < 5) return few;
+    if (n1 === 1) return one;
+    return many;
+}
+
+function getStreakLabel(freq, count) {
+    if (freq === 'DAILY') {
+        return pluralize(count, 'день подряд', 'дня подряд', 'дней подряд');
+    } else if (freq === 'WEEKLY') {
+        return pluralize(count, 'неделя подряд', 'недели подряд', 'недель подряд');
+    } else if (freq === 'MONTHLY') {
+        return pluralize(count, 'месяц подряд', 'месяца подряд', 'месяцев подряд');
+    } else if (freq === 'INTERVAL') {
+        return pluralize(count, 'выполнение', 'выполнения', 'выполнений');
+    }
+    return 'Серия';
 }
 
 // Чем меньше score, тем ближе привычка по времени
