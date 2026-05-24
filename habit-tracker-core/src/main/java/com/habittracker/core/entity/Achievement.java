@@ -18,14 +18,19 @@ public class Achievement {
     @Column(nullable = false)
     private AchievementType type;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Frequency frequency;
+
     @Column(name = "unlocked_at")
     private LocalDateTime unlockedAt = LocalDateTime.now();
 
     public Achievement() {}
 
-    public Achievement(User user, AchievementType type) {
+    public Achievement(User user, AchievementType type, Frequency frequency) {
         this.user = user;
         this.type = type;
+        this.frequency = frequency;
     }
 
     public Long getId() { return id; }
@@ -36,6 +41,9 @@ public class Achievement {
 
     public AchievementType getType() { return type; }
     public void setType(AchievementType type) { this.type = type; }
+
+    public Frequency getFrequency() { return frequency; }
+    public void setFrequency(Frequency frequency) { this.frequency = frequency; }
 
     public LocalDateTime getUnlockedAt() { return unlockedAt; }
     public void setUnlockedAt(LocalDateTime unlockedAt) { this.unlockedAt = unlockedAt; }

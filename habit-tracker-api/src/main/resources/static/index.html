@@ -34,10 +34,6 @@
                         <span id="clock-time">--:--</span>
                         <span id="clock-date">--.--.----</span>
                     </div>
-                    <div class="skip-buttons">
-                        <button id="skip-day-btn" class="skip-day-btn" title="Пропустить сутки">⏭ +1 день</button>
-                        <button id="reset-day-btn" class="reset-day-btn" title="Вернуться к текущей дате">↺ Сброс</button>
-                    </div>
                 </div>
             <h1>📊 Трекер привычек</h1>
             <nav id="nav">
@@ -254,12 +250,7 @@
                             <button class="btn-save" style="background: #f39c12;" onclick="changePassword()">🔐 Сменить пароль</button>
                         </div>
                     </div>
-                    <div class="profile-field email-test-section" style="background: #f0f8ff; border: 1px solid #667eea; border-radius: 8px; padding: 15px; margin-top: 15px;">
-                        <label>🧪 Тестирование email</label>
-                        <p style="font-size: 0.85rem; color: #666; margin: 8px 0;">Отправьте тестовое письмо, чтобы проверить настройки</p>
-                        <button class="btn-save" style="background: #667eea; margin-bottom: 8px;" onclick="sendTestEmail()">📧 Отправить тестовое письмо</button>
-                        <button class="btn-save" style="background: #28a745;" onclick="triggerReminders()">🚀 Запустить рассылку сейчас</button>
-                    </div>
+
                     <div class="profile-field">
                         <label>Дата регистрации</label>
                         <div id="profile-created" class="profile-value">—</div>
@@ -286,6 +277,10 @@
                             <div class="profile-stat">
                                 <span id="profile-total-completions">0</span>
                                 <span id="profile-total-completions-label">выполнений</span>
+                            </div>
+                            <div class="profile-stat">
+                                <span id="profile-total-achievements">0</span>
+                                <span id="profile-total-achievements-label">достижений</span>
                             </div>
                         </div>
                     </div>

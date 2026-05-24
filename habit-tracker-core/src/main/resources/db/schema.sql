@@ -25,9 +25,13 @@ CREATE TABLE IF NOT EXISTS achievements (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR(30) NOT NULL,
+    frequency VARCHAR(10) NOT NULL DEFAULT 'DAILY',
     unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT achievements_user_type UNIQUE (user_id, type)
+    CONSTRAINT achievements_user_type_freq UNIQUE (user_id, type, frequency)
 );
+ALTER TABLE achievements ADD COLUMN IF NOT EXISTS frequency VARCHAR(10) NOT NULL DEFAULT 'DAILY';
+ALTER TABLE achievements DROP CONSTRAINT IF EXISTS achievements_user_type;
+ALTER TABLE achievements ADD CONSTRAINT IF NOT EXISTS achievements_user_type_freq UNIQUE (user_id, type, frequency);
 
 -- Habits table
 CREATE TABLE IF NOT EXISTS habits (

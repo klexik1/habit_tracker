@@ -12,5 +12,6 @@ public record ProfileDto(
     Boolean notifyHourBefore,
     LocalDateTime createdAt,
     long habitCount,
-    long totalCompletions
+    long totalCompletions,
+    long totalAchievements
 ) {}

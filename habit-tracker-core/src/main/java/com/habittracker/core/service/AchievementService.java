@@ -11,6 +11,7 @@ import com.habittracker.core.repository.HabitCompletionRepository;
 import com.habittracker.core.repository.HabitRepository;
 import com.habittracker.core.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -43,7 +44,7 @@ public class AchievementService {
             return List.of();
         }
 
-        List<Achievement> unlocked = achievementRepository.findByUserId(user.getId());
+        List<Achievement> unlocked = achievementRepository.findByUserIdAndFrequency(user.getId(), frequency);
         Set<AchievementType> unlockedTypes = new HashSet<>();
         for (Achievement a : unlocked) unlockedTypes.add(a.getType());
 
@@ -51,8 +52,17 @@ public class AchievementService {
                 .filter(h -> h.getFrequency() == frequency)
                 .toList();
         long habitCount = habits.size();
-        long completionsSum = user.getLifetimeCompletionCount() != null ? user.getLifetimeCompletionCount() : 0;
-        int bestStreak = user.getLifetimeBestStreak() != null ? user.getLifetimeBestStreak() : 0;
+
+        long completionsSum = habits.stream()
+                .mapToLong(h -> completionRepository.findByHabitId(h.getId()).stream()
+                        .filter(c -> c.isCompleted()).count())
+                .sum();
+
+        int bestStreak = 0;
+        for (Habit h : habits) {
+            int streak = calculateLongestStreak(h.getId());
+            if (streak > bestStreak) bestStreak = streak;
+        }
 
         List<AchievementDto> result = new ArrayList<>();
         for (AchievementType type : AchievementType.values()) {
@@ -101,24 +111,40 @@ public class AchievementService {
             userRepository.save(user);
         }
 
-        long completionsSum = user.getLifetimeCompletionCount() != null ? user.getLifetimeCompletionCount() : 0;
+        long completionsSum = habits.stream()
+                .mapToLong(h -> completionRepository.findByHabitId(h.getId()).stream()
+                        .filter(c -> c.isCompleted()).count())
+                .sum();
+
         int bestStreak = Math.max(lifetimeBest, currentBestStreak);
 
-        awardIfNotExists(user, AchievementType.FIRST_HABIT, habitCount >= 1);
-        awardIfNotExists(user, AchievementType.HABITS_5, habitCount >= 5);
-        awardIfNotExists(user, AchievementType.HABITS_10, habitCount >= 10);
-        awardIfNotExists(user, AchievementType.FIRST_COMPLETION, completionsSum >= 1);
-        awardIfNotExists(user, AchievementType.COMPLETIONS_10, completionsSum >= 10);
-        awardIfNotExists(user, AchievementType.COMPLETIONS_50, completionsSum >= 50);
-        awardIfNotExists(user, AchievementType.COMPLETIONS_100, completionsSum >= 100);
-        awardIfNotExists(user, AchievementType.STREAK_7, bestStreak >= 7);
-        awardIfNotExists(user, AchievementType.STREAK_30, bestStreak >= 30);
-        awardIfNotExists(user, AchievementType.STREAK_100, bestStreak >= 100);
+        awardIfNotExists(user, AchievementType.FIRST_HABIT, frequency, habitCount >= 1);
+        awardIfNotExists(user, AchievementType.HABITS_5, frequency, habitCount >= 5);
+        awardIfNotExists(user, AchievementType.HABITS_10, frequency, habitCount >= 10);
+        awardIfNotExists(user, AchievementType.FIRST_COMPLETION, frequency, completionsSum >= 1);
+        awardIfNotExists(user, AchievementType.COMPLETIONS_10, frequency, completionsSum >= 10);
+        awardIfNotExists(user, AchievementType.COMPLETIONS_50, frequency, completionsSum >= 50);
+        awardIfNotExists(user, AchievementType.COMPLETIONS_100, frequency, completionsSum >= 100);
+        awardIfNotExists(user, AchievementType.STREAK_7, frequency, bestStreak >= 7);
+        awardIfNotExists(user, AchievementType.STREAK_30, frequency, bestStreak >= 30);
+        awardIfNotExists(user, AchievementType.STREAK_100, frequency, bestStreak >= 100);
     }
 
-    private void awardIfNotExists(User user, AchievementType type, boolean condition) {
-        if (condition && !achievementRepository.existsByUserIdAndType(user.getId(), type)) {
-            achievementRepository.save(new Achievement(user, type));
+    private void awardIfNotExists(User user, AchievementType type, Frequency frequency, boolean condition) {
+        if (!condition) return;
+        if (achievementRepository.existsByUserIdAndTypeAndFrequency(user.getId(), type, frequency)) {
+            return;
+        }
+        // Сохраняем в отдельной транзакции, чтобы исключение не откатило создание привычки
+        saveAchievementSafely(user, type, frequency);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    protected void saveAchievementSafely(User user, AchievementType type, Frequency frequency) {
+        try {
+            achievementRepository.save(new Achievement(user, type, frequency));
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Констрейнт уже существует — игнорируем
         }
     }
 

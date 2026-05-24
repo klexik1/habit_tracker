@@ -10,17 +10,8 @@ const completionsCache = new Map(); // ключ: habitId_dateIso
 const rangeCache = new Map();       // ключ: habitId_start_end
 let isCheckingReminders = false;
 
-// Смещение дней для тестирования (кнопка "пропустить сутки")
-let testDayOffset = parseInt(localStorage.getItem('testDayOffset') || '0');
-
-function getTestDate(base = new Date()) {
-    const d = new Date(base);
-    d.setDate(d.getDate() + testDayOffset);
-    return d;
-}
-
 function toLocalIso(date) {
-    const d = getTestDate(date);
+    const d = new Date(date);
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
@@ -28,7 +19,7 @@ function toLocalIso(date) {
 }
 
 function getTodayDate() {
-    return getTestDate();
+    return new Date();
 }
 
 function normalizeDate(dateValue) {
@@ -92,7 +83,7 @@ function isCompletedInPeriod(habit, todayComps, yesterdayComps) {
 }
 
 function getCurrentPeriodBounds(habit) {
-    const now = getTestDate();
+    const now = new Date();
     const reminderTime = habit.reminderTime || '00:00';
     const intervalMinutes = habit.intervalMinutes || 240;
     const [rh, rm] = reminderTime.split(':').map(Number);
@@ -183,7 +174,6 @@ function calculateStreak(habit, completions) {
 // Проверка авторизации при загрузке
 document.addEventListener('DOMContentLoaded', () => {
     startClock();
-    initSkipDayButton();
     initPushNotifications();
     initReminderPicker();
 
@@ -264,7 +254,7 @@ function renderWeekPicker() {
     if (!container) return;
     container.innerHTML = '';
     const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-    const now = getTestDate();
+    const now = new Date();
     for (let i = 0; i < 7; i++) {
         const d = new Date(now);
         d.setDate(d.getDate() + i);
@@ -300,7 +290,7 @@ function renderMonthCalendar() {
         grid.appendChild(el);
     });
 
-    const now = getTestDate();
+    const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -378,7 +368,7 @@ function renderEditWeekPicker() {
     if (!container) return;
     container.innerHTML = '';
     const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-    const now = getTestDate();
+    const now = new Date();
     for (let i = 0; i < 7; i++) {
         const d = new Date(now);
         d.setDate(d.getDate() + i);
@@ -414,7 +404,7 @@ function renderEditMonthCalendar() {
         grid.appendChild(el);
     });
 
-    const now = getTestDate();
+    const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -448,7 +438,7 @@ function selectEditMonthDay(el) {
 // ============ ЧАСЫ И КНОПКА ПРОПУСКА ДНЯ ============
 function startClock() {
     const update = () => {
-        const now = getTestDate();
+        const now = new Date();
         document.getElementById('clock-time').textContent = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         document.getElementById('clock-date').textContent = now.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
         updateTimers();
@@ -464,31 +454,7 @@ function startClock() {
     }, 60000);
 }
 
-function initSkipDayButton() {
-    const btn = document.getElementById('skip-day-btn');
-    const resetBtn = document.getElementById('reset-day-btn');
-    if (!btn) return;
 
-    btn.addEventListener('click', () => {
-        testDayOffset++;
-        localStorage.setItem('testDayOffset', testDayOffset);
-        completionsCache.clear();
-        rangeCache.clear();
-        showNotification(`⏭ Сутки пропущены! Текущая дата: ${toLocalIso(new Date())}`, 'info');
-        if (token) loadHabits();
-    });
-
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            testDayOffset = 0;
-            localStorage.setItem('testDayOffset', '0');
-            completionsCache.clear();
-            rangeCache.clear();
-            showNotification('↺ Дата сброшена к текущей', 'info');
-            if (token) loadHabits();
-        });
-    }
-}
 
 // ============ ПУШ-УВЕДОМЛЕНИЯ ============
 function initPushNotifications() {
@@ -513,7 +479,7 @@ async function checkReminders() {
     if (isCheckingReminders) return;
     isCheckingReminders = true;
     try {
-        const now = getTestDate();
+        const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
         const todayStr = toLocalIso(now);
         const minuteKey = `${todayStr}-${nowMinutes}`;
@@ -739,6 +705,9 @@ async function loadProfile() {
         document.getElementById('profile-habit-count-label').textContent = pluralize(habitCount, 'привычка', 'привычки', 'привычек');
         document.getElementById('profile-total-completions').textContent = totalCompletions;
         document.getElementById('profile-total-completions-label').textContent = pluralize(totalCompletions, 'выполнение', 'выполнения', 'выполнений');
+        const totalAchievements = profile.totalAchievements || 0;
+        document.getElementById('profile-total-achievements').textContent = totalAchievements;
+        document.getElementById('profile-total-achievements-label').textContent = pluralize(totalAchievements, 'достижение', 'достижения', 'достижений');
 
         // Обновляем UI верификации email
         updateEmailVerificationUI(profile.emailVerified, profile.email);
@@ -1056,45 +1025,6 @@ async function savePushNotificationSettings() {
         showNotification('🔔 Настройки push-уведомлений сохранены', 'success');
     } catch (error) {
         showNotification('Ошибка сохранения настроек push-уведомлений', 'error');
-    }
-}
-
-async function sendTestEmail() {
-    const email = document.getElementById('profile-email-input').value;
-    if (!email) {
-        showNotification('Сначала укажите email в профиле', 'error');
-        return;
-    }
-    try {
-        const response = await fetch(`${API_URL}/email-test/send?to=${encodeURIComponent(email)}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const text = await response.text();
-        if (response.ok) {
-            showNotification('📧 Тестовое письмо отправлено! Проверьте почту', 'success');
-        } else {
-            showNotification('Ошибка: ' + extractServerError(text), 'error');
-        }
-    } catch (error) {
-        showNotification('Ошибка отправки: ' + error.message, 'error');
-    }
-}
-
-async function triggerReminders() {
-    try {
-        const response = await fetch(`${API_URL}/email-test/trigger-reminders`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const text = await response.text();
-        if (response.ok) {
-            showNotification('🚀 Рассылка запущена! Проверьте логи IDE', 'success');
-        } else {
-            showNotification('Ошибка: ' + extractServerError(text), 'error');
-        }
-    } catch (error) {
-        showNotification('Ошибка запуска: ' + error.message, 'error');
     }
 }
 
@@ -2317,7 +2247,7 @@ function getStreakLabel(freq, count) {
 
 // Чем меньше score, тем ближе привычка по времени
 function getUpcomingScore(habit) {
-    const now = getTestDate();
+    const now = new Date();
     const freq = habit.frequency || 'DAILY';
     const val = habit.reminderTime || '';
     const hour = habit.reminderHour || '00:00';
@@ -2414,7 +2344,7 @@ function formatReminderLabel(habit) {
 }
 
 function getTimeUntil(freq, val, hour, intervalMinutes) {
-    const now = getTestDate();
+    const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
     if (freq === 'DAILY') {

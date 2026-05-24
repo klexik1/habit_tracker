@@ -65,9 +65,10 @@ public class UserService {
                 .mapToLong(h -> completionRepository.countCompletedByHabitAndPeriod(
                         h.getId(), java.time.LocalDate.of(2000, 1, 1), java.time.LocalDate.now()))
                 .sum();
+        long totalAchievements = achievementRepository.countByUserId(user.getId());
         return new ProfileDto(user.getId(), user.getUsername(), user.getEmail(),
                 user.getEmailNotificationsEnabled(), user.getEmailVerified(), user.getNotifyAtMidnight(), user.getNotifyHourBefore(),
-                user.getCreatedAt(), habitCount, totalCompletions);
+                user.getCreatedAt(), habitCount, totalCompletions, totalAchievements);
     }
 
     public void updateEmailNotifications(User user, Boolean enabled) {
