@@ -596,12 +596,31 @@ async function toggleNotifications(habitId, enabled) {
 
         if (!response.ok) throw new Error('Ошибка');
 
+        // Обновляем UI сразу
+        const card = document.getElementById(`habit-card-${habitId}`);
+        if (card) {
+            const toggleLabel = card.querySelector('.notification-toggle');
+            const toggleSpan = card.querySelector('.notification-toggle span');
+            if (toggleLabel) {
+                toggleLabel.classList.toggle('active', enabled);
+            }
+            if (toggleSpan) {
+                toggleSpan.textContent = enabled ? '🔔 Уведомления вкл' : '🔔 Уведомления выкл';
+            }
+        }
+
         if (enabled) {
             showNotification('🔔 Уведомления включены', 'success');
         } else {
             showNotification('🔕 Уведомления выключены', 'info');
         }
     } catch (error) {
+        // Возвращаем чекбокс в исходное состояние
+        const card = document.getElementById(`habit-card-${habitId}`);
+        if (card) {
+            const checkbox = card.querySelector('.notification-toggle input[type="checkbox"]');
+            if (checkbox) checkbox.checked = !enabled;
+        }
         showNotification('Ошибка переключения уведомлений', 'error');
     }
 }
